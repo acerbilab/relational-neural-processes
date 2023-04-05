@@ -87,4 +87,4 @@ The experiments look the same as the GNP paper, with possibly a better explanati
 3. **EEG experiments.** Real EEG dataset (7632 multivariate time series).
    - Regression problem: 1D input (time series of 256 time points), 7D output (each output is a separate EEG channel).
    - Methods: Zoo of models.
-4. **Environmental modelling.**
+4. **Environmental modelling.** Several experiments, all quite involved (possibly better explained than the GNP paper).
