@@ -64,7 +64,9 @@ Main competitor we need to compare against.
 4. **Temperature downscaling for environmental modelling**. Multiple experiments with climate based data.
    - Regression problem: Unclear, some multi-input multi-output thing (perhaps 1D output, being temperature).
    - Methods: ConvGNP ($\times 3$), ConvNP, Value baseline (MAE - whatever MAE stands for).
-   - Comment: This set of experiments is very complex and near-impossible to figure out the exact details just from the paper, even considering the appendices. In practice, we would need to read the other paper that focuses on this, [Vaughan et al. (2021)](https://arxiv.org/abs/2101.07950); probably not worth it unless the code is available and runs out of the box.
+   - Comment: This set of experiments is very complex and near-impossible to figure out the exact details just from the paper, even considering the appendices. In practice, we would need to read the other paper that focuses on this, [Vaughan et al. (2021)](https://arxiv.org/abs/2101.07950); probably not worth it unless the code is available and runs out of the box.  
+_Should be the same as used in Bruinsma et al., in which case it is available in the repository they provide._
+
 
 ## AR-CNP paper ([Bruinsma et al., 2022](https://arxiv.org/abs/2303.14468))
 
