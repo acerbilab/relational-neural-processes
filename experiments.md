@@ -66,4 +66,21 @@ Main competitor we need to compare against.
    - Methods: ConvGNP ($\times 3$), ConvNP, Value baseline (MAE - whatever MAE stands for).
    - Comment: This set of experiments is very complex and near-impossible to figure out the exact details just from the paper, even considering the appendices. In practice, we would need to read the other paper that focuses on this, [Vaughan et al. (2021)](https://arxiv.org/abs/2101.07950); probably not worth it unless the code is available and runs out of the box.
 
-   
+## AR-CNP paper ([Bruinsma et al., 2022](https://arxiv.org/abs/2303.14468))
+
+This paper is worth reading as it systematizes the NP literature, with generally better definitions, notations, and descriptions of experiments and implementations (e.g., see Appendix F for the nice catalog of NP models).
+
+#### Metrics used in the experiments
+- Predictive log-likelihood over multiple (e.g., 1000) test regression tasks (a task is a new dataset);
+
+#### Experiments
+
+The experiments look the same as the GNP paper, with possibly a better explanation for both the EEG and the environmental modelling setup. The synthetic experiments are way more comprehensive, including more functions and methods. The code is here: https://github.com/wesselb/neuralprocesses
+
+1. **Synthetically generated Gaussian and non-Gaussian data:** Twenty different regression tasks.
+   - Regression problems: 1D or 2D input, 1D output.
+   - Functions: Draws from GPs with different kernels (EQ, Matern 5/2, weakly periodic), plus non-Gaussian functions (sawtooth, mixture of GP + sawtooth).
+   - Methods: ConvCNP, ConvCNP (AR), ConvGNP, FullConvGNP, ConvNLP (ML), ConvLNP (ELBO), GP (diag), trivial (1D normal with empirical mean and variance) in the main text; and many more in the appendix (pretty much the whole NP zoo).
+2. **Predator-prey experiments.**
+3. **EEG experiments.**
+4. **Environmental modelling.**
