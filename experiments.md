@@ -59,7 +59,7 @@ Main competitor we need to compare against.
    - Methods: ConvGNP ($\times 3$), ConvGCNP ($\times 3$).
    - ConvGCNP: A marginal CDF transformation of the output is introduced to enforce positivity of the output. I think the "C" in ConvGCNP doesn't stand for conditional (all GNPs are GCNPs, "Gaussian conditional neural processes"), but for CDF transformation of the marginal. The notation is not only super-confusing, but it's *also* used inconsistently in this same section (both "ConvCGNPs" and "ConvGCNPs" appear, *presumably* to mean the same thing).
 3. **EEG experiments:** Real EEG dataset (7632 multivariate time series).
-   - Regression problem: Multi-input, multi-output problem? To clarify.
+   - Regression problem: Multi-input, multi-output problem? To clarify. After reading the AR-CNP paper (if the setup is the same): 1D input (time series of 256 time points), 7D output (each output is a separate EEG channel).
    - Methods: ConvGNP ($\times 3$), ConvNP, MOGP (multi-output GP).
 4. **Temperature downscaling for environmental modelling**. Multiple experiments with climate based data.
    - Regression problem: Unclear, some multi-input multi-output thing (perhaps 1D output, being temperature).
@@ -84,5 +84,7 @@ The experiments look the same as the GNP paper, with possibly a better explanati
    - Functions: Draws from GPs with different kernels (EQ, Matern 5/2, weakly periodic), plus non-Gaussian functions (sawtooth, mixture of GP + sawtooth).
    - Methods: ConvCNP, ConvCNP (AR), ConvGNP, FullConvGNP, ConvNLP (ML), ConvLNP (ELBO), GP (diag), trivial (1D normal with empirical mean and variance) in the main text; and many more in the appendix (pretty much the whole NP zoo).
 2. **Predator-prey experiments.**
-3. **EEG experiments.**
+3. **EEG experiments.** Real EEG dataset (7632 multivariate time series).
+   - Regression problem: 1D input (time series of 256 time points), 7D output (each output is a separate EEG channel).
+   - Methods: Zoo of models.
 4. **Environmental modelling.**
