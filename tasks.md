@@ -1,12 +1,12 @@
 # Tasks
 
-#### Synthetic 1-2D regression using AR-CNP paper code: 
+#### Synthetic 1-2D regression using AR-CNP paper code (Ti, Daolang):
 
 - Add RCNP model to the model set.
 - Add RGNP (kvv) model to the model set where Cov(x, x') = K(phi(r(x)), phi(r(x'))) v(phi(r(x))) v(phi(r(x'))).
 - Run the benchmark from the AR-CNP paper with RCNP and RGNP (kvv).
 
-#### Synthetic "high" D regression using AR-CNP paper code:
+#### Synthetic "high" D regression using AR-CNP paper code :
 
 - As above but we scale to $D>2$ (non-isotropic to $D=3-4$, maybe 5; isotropic to whatever we can manage, 20, 100?)
 - We need to run other baselines: which ones?
@@ -40,7 +40,7 @@
 
 - Think of something.
 
-#### Figure out permutation invariance of input dimensions (everyone)
+#### Figure out permutation invariance of input dimensions (Luigi, everyone)
 
 - How do we implement that, if we can? (see [this](https://github.com/PrincetonLIPS/AHGP) as an example).
 - Otherwise, simple approach is "data augmentation" (or summing over all permutations after applying the relational representation); this is impractical above $D \approx 4$ as it grows as $D!$.
