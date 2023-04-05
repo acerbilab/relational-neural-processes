@@ -68,7 +68,7 @@ Main competitor we need to compare against.
 
 ## AR-CNP paper ([Bruinsma et al., 2022](https://arxiv.org/abs/2303.14468))
 
-This paper is worth reading as it systematizes the NP literature, with generally better definitions, notations, and descriptions of experiments and implementations (e.g., see Appendix F for the nice catalog of NP models).
+This paper is a must-read as it systematizes the NP literature, with generally better definitions, notations, and descriptions of experiments and implementations (e.g., see Appendix F for the nice catalog of NP models).
 
 #### Metrics used in the experiments
 - Predictive log-likelihood over multiple (e.g., 1000) test regression tasks (a task is a new dataset);
