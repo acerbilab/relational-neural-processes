@@ -1,0 +1,159 @@
+Predator-prey:
+    ☐ Leave off bits of five years for match prediction task
+        ☐ Give inputs and select based on those?
+    ☐ Clean up generator:
+        ☐ Mechanism for unused arguments?
+        ☐ Split off one more abstract class?
+        ☐ Do not use
+
+    ☐ WBML: predator prey data + generator
+        http://people.whitman.edu/~hundledr/courses/M250F03/LynxHare.txt
+        ☐ Other data? TODO?
+
+    ☐ Read model modifications here:
+        https://jckantor.github.io/CBE30338/02.05-Hare-and-Lynx-Population-Dynamics.html
+
+Union inputs (EEG and synthetic):
+    ☐ `nps.Union((x1, 0), (x2, 1), ...)` for output selection @high
+    ☐ Different x locations and different number in different outputs in data gens. @high
+        ☐ Multiple context sets:
+            ☐ Support multiple contexts in NP, ANP
+
+AR:
+    ☐ Support grid-like inputs in AR functions. @high
+    ☐ AR sampling for multi-dimensional outputs. @high
+
+1D Improvements:
+    ☐ UNet receptive field for sawtooth extrapolation? Decide! @high
+    ☐ Increase lengthscale of weakly-periodic period EQ @high
+
+TODOs:
+    ☐ Noisy samples for CIs
+    ☐ Stabilise masking test
+
+UNet:
+    ☐ Multiple conv blocks:
+        ☐ `unet_skip_connections=(True, True, False, False)`
+        ☐ `unet_striding=(True, True, False, False)`
+        ☐ `unet_repeat_block=(1, 2, 1, 1)`
+    ☐ Even kernel size
+
+Short Term:
+    ☐ Copy README from NeuralProcesses.jl and finish first version @high
+    ☐ Speed up `dim-y >= 2 generation? Necessary? Cache Stheno model?
+    ☐ IW for `loglik`
+
+Refactor:
+    ☐ Integrate transforms with `probmods`.
+
+Features:
+    ☐ kvv covariance
+    ☐ Learnable channel
+        ☐ Gibbs kernel (MLKernels)
+            ☐ `pairwise_from_dist2`
+            ☐ `elwise_from_dist2`
+        ☐ Given initialisation, like PCA
+
+
+
+＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿
+Archive:
+ ✓ Scaling of outputs in generator @done (22-04-28 16:13) @project(Predator-prey)
+ ✓ Ensure never reaches zero: positive noise @done (22-04-28 16:13) @project(Predator-prey)
+ ✓ Random scaling? @done (22-04-28 16:12) @project(Predator-prey)
+ ✓ Random offset? @done (22-04-28 16:12) @project(Predator-prey)
+ ✓ LAB: @done (22-04-28 16:12) @project(Predator-prey)
+ ✓ Indexing with GPU tensors: converts to NumPy automatically: is there a specialised functions for taking indices? Overload for PyTorch! @done (22-04-28 16:12) @project(Predator-prey)
+ ✓ Indexing int32s @done (22-04-28 16:12) @project(Predator-prey)
+ ✓ Cap maximum. @done (22-04-28 16:12) @project(Predator-prey)
+ ✓ `schedule_gp`: wait until processes finished. @done (22-04-28 14:01) @project(TODO)
+ ✓ Fix up snippet @done (22-04-28 12:16) @project(TODO)
+ ✓ Fix `git diff` locally @done (22-04-28 12:01) @project(Predator-prey)
+ ✓ `predprey.py` @done (22-04-28 11:59) @project(Predator-prey)
+ ✓ Fix `git diff` on server @done (22-04-28 11:59) @project(Predator-prey)
+ ✓ Same number of contexts in mixture generator @high @done (22-04-28 11:38) @project(1D Improvements)
+ ✓ Reconstruct data gen for every eval @done (22-04-28 11:38)
+ x Train without normalisation, but report with normalisation @critical @cancelled (22-04-27 17:56) @project(Bugs)
+ ✓ Loglik versus ELBO?! What's going on? @critical @done (22-04-27 16:07) @project(Bugs)
+ ✓ Check 2D weakly-periodic samples @critical @done (22-04-27 16:07) @project(Bugs)
+ ✓ `cv_objective` @critical @done (22-04-27 10:28) @project(Bugs)
+ ✓ ELBO ConvNP with loglik objective failing? @critical @done (22-04-27 10:05) @project(Bugs)
+ ✓ Add `ar_elbo`. @high @done (22-04-26 18:10) @project(AR)
+ x DWS over UNet to enable same settings for all models? @cancelled (22-04-26 09:12) @project(1D Improvements)
+  More expensive than UNet!
+ ✓ Add `grid` option to `ar_predict`. @done (22-04-25 21:29) @project(AR)
+ ✓ `B.randperm` @done (22-04-25 19:54) @project(AR)
+ ✓ Random states for AR functions @done (22-04-25 19:54) @project(AR)
+ ✓ Implement random order in _sort_targets @done (22-04-25 19:54) @project(AR)
+ ✓ Timing of ConvGNP x2_y2 on sawtooth? @done (22-04-25 18:32) @project(AR)
+ ✓ Everything <= 2 min / epoch @done (22-04-25 14:30) @project(AR)
+ x Check ConvNP sawtooth x2_y2 fit @cancelled (22-04-25 14:30) @project(AR)
+ x Check ConvCNP sawtooth x2_y2 fit @cancelled (22-04-25 14:30) @project(AR)
+ ✓ Ability to fix the noise to be small for early epochs? @done (22-04-25 12:22) @project(Short Term)
+ ✓ Make ConvNP 2D outputs fit on sawtooth and weakly-periodic @high @done (22-04-25 12:14) @project(AR)
+ ✓ Check ANP ELBO? @high @done (22-04-25 11:54) @project(AR)
+ ✓ `schedule_gp.py`: ability to ignore runs which already finished! @done (22-04-25 11:49) @project(AR)
+ ✓ Check 2D plotting for CNP: do ConvCNP in same way! @high @done (22-04-25 11:49) @project(AR)
+ ✓ 200 -> 500 in 1d function, remove plt.show() @done (22-04-23 15:40) @project(AR)
+ ✓ Undo sorting of inputs @done (22-04-23 15:22) @project(AR)
+ ✓ ConvNP + x2_y* + loglik? Too memory intensive. @high @done (22-04-23 15:05) @project(TODOs)
+  Only ELBO or batch/4 rate/4?
+  Batch size 4 takes 25 min/epoch
+  ELBO@5 takes 9 min/epoch
+  Simply exclude ConvNP?
+ ✓ Change folder to first x1_y1 @high @done (22-04-23 15:05) @project(TODOs)
+ ✓ Reduce num contexts for 1D again! @done (22-04-23 14:00) @project(TODOs)
+ ✓ Add LVs option to script @done (22-04-23 14:00) @project(TODOs)
+ ✓ Check ConvGNP on eq and weakly-periodic from epoch 38 @high @done (22-04-23 13:53) @project(TODOs)
+ x Check ConvGNP on weakly-periodic @high @cancelled (22-04-23 13:42) @project(TODOs)
+ ✓ BatchedMLP allow option `num_layers` and simplify code. @done (22-04-22 16:26) @project(TODOs)
+ x AR more during eval @cancelled (22-04-22 16:26) @project(TODOs)
+ ✓ Allow dim_y_latent > 1 but dim_y = 1 @done (22-04-22 16:20) @project(TODOs)
+ ✓ seed_parameters @done (22-04-22 16:19) @project(TODOs)
+ ✓ FIX SEED FOR MIXING MATRIX!!!!!! @critical @done (22-04-22 16:19) @project(TODOs)
+ ✓ Plotting intensity? @done (22-04-22 16:17) @project(TODOs)
+ ✓ Show both train and test loss @done (22-04-22 13:01) @project(TODOs)
+ ✓ Add `--evaluate-batch-size` @done (22-04-22 13:01) @project(TODOs)
+ ✓ Remove noise from sawtooth @done (22-04-22 13:00) @project(TODOs)
+ ✓ Context to (0, 50) and (0, 100) @done (22-04-22 13:00) @project(TODOs)
+ ✓ rand for weights @done (22-04-22 11:21) @project(TODOs)
+ ✓ more observations generally? @done (22-04-22 11:21) @project(TODOs)
+ ✓ divide by factor in sawtooth length scale! @done (22-04-22 11:21) @project(TODOs)
+  64 channels, 32 ppu, 1e-4 fits, UNet!
+ ✓ Get ConvCNP to fit x1_y2 sawtooth: @done (22-04-22 11:21) @project(TODOs)
+  Only positive weights? Yes, that seems to work.
+  LR important? No, eventually loss goes crazy again. Well, need 1e-5.
+  Correlations important? Yes, that seems to stabilise training.
+  Or is number of observations important? No, but affects loss.
+  Need many UNet channels? Need at least (128,) * 6 channels.
+  Need at least PPU 64?
+  ppu 128, 512 channels, 1e-6
+ ✓ ConvNP x2_y2 eval batch size tuning --evaluate-batch-size @done (22-04-22 11:21) @project(TODOs)
+ ✓ ConvCNP fit x2_y1 sawtooth! @done (22-04-22 11:21) @project(TODOs)
+ ✓ 10 works for eval; 5 works for training @done (22-04-22 11:21) @project(TODOs)
+ ✓ Plotting: @done (22-04-22 09:12) @project(TODOs)
+ ✓ Get ANP to fit! @done (22-04-22 09:12) @project(Sanity Checks)
+ ✓ Does increasing `evaluate_num_samples` indeed help for the LV models? @done (22-04-22 09:12) @project(Sanity Checks)
+ ✓ 2D outputs @done (22-04-22 09:12) @project(TODOs)
+ ✓ 2D inputs @done (22-04-22 09:12) @project(TODOs)
+ ✓ Performance FullConvGNP on `weakly-periodic`? @done (22-04-21 16:51) @project(Sanity Checks)
+ x `points_per_unit` appropriate or too low? @cancelled (22-04-21 16:51) @project(Sanity Checks)
+ ✓ Performance ConvNP on `sawtooth`? @done (22-04-21 16:35) @project(Sanity Checks)
+ x `rate` 5e-4 too high? @cancelled (22-04-21 16:35) @project(Sanity Checks)
+ ✓ Carefully configure all settings of all models @done (22-04-21 16:28) @project(TODOs)
+ ✓ Resume training at epoch @done (22-04-21 16:08) @project(TODOs)
+ ✓ Plot a few before running eval @done (22-04-21 15:50) @project(TODOs)
+ ✓ Fix convcnp @done (22-04-21 15:50) @project(TODOs)
+ ✓ Random state in objective @done (22-04-21 15:41) @project(TODOs)
+ ✓ Check number of samples @done (22-04-21 15:29) @project(TODOs)
+ ✓ Check ANP arch with paper @done (22-04-21 15:24) @project(TODOs)
+ ✓ Carefully configure all models: ANP and NP `width` kw? @done (22-04-21 15:24) @project(TODOs)
+ ✓ Fix duplicate code between models @done (22-04-21 15:22) @project(TODOs)
+ ✓ Transforms for all models @done (22-04-21 14:49) @project(Short Term)
+ ✓ Log of eval elsewhere @high @done (22-04-21 14:45) @project(TODOs)
+ ✓ Eval mode for script @high @done (22-04-21 14:29) @project(TODOs)
+ ✓ `loglik` batching for high-number of samples @done (22-04-21 13:18) @project(TODOs)
+ ✓ Port Julia repo @high @done (22-04-21 12:41) @project(TODOs / Port)
+ ✓ GNP @high @done (22-04-21 12:41) @project(TODOs / Port)
+  https://github.com/wesselb/neuralprocesses/tree/f4de0a3f9c0d4971d29813a6ff9acf763f73f05c/neuralprocesses/gnp
+
