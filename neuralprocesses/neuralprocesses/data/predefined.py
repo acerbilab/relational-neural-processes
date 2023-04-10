@@ -73,7 +73,7 @@ def construct_predefined_gens(
             seed=seed,
             noise=0.05,
             kernel=kernel,
-            num_context=UniformDiscrete(0, 30 * dim_x),
+            num_context=UniformDiscrete(1, 30 * dim_x),
             num_target=UniformDiscrete(50 * dim_x, 50 * dim_x),
             pred_logpdf=pred_logpdf,
             pred_logpdf_diag=pred_logpdf_diag,
