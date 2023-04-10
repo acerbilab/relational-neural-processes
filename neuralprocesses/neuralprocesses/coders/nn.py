@@ -9,7 +9,9 @@ from .. import _dispatch
 from ..datadims import data_dims
 from ..util import register_module, compress_batch_dimensions, with_first_last
 
-__all__ = ["Linear", "MLP", "UNet", "ConvNet", "Conv", "ResidualBlock"]
+import torch
+
+__all__ = ["Linear", "MLP", "UNet", "ConvNet", "Conv", "ResidualBlock", "RelationalMLP"]
 
 
 @register_module
@@ -86,14 +88,18 @@ class MLP:
     def __call__(self, x):
         x = B.transpose(x)
         x, uncompress = compress_batch_dimensions(x, 2)
+
         x = self.net(x)
+
         x = uncompress(x)
         x = B.transpose(x)
+
         return x
 
 
 @_dispatch
 def code(coder: Union[Linear, MLP], xz, z: B.Numeric, x, **kw_args):
+
     d = data_dims(xz)
 
     # Construct permutation to switch the channel dimension and the last dimension.
@@ -108,6 +114,97 @@ def code(coder: Union[Linear, MLP], xz, z: B.Numeric, x, **kw_args):
     z = B.transpose(z, perm=switch)
 
     return xz, z
+
+
+@register_module
+class RelationalMLP:
+    """RelationalMLP.
+
+    Args:
+        in_dim (int): Input dimensionality.
+        relational_out_dim (int): Output dimensionality.
+        layers (tuple[int, ...], optional): Width of every hidden layer.
+        num_layers (int, optional): Number of hidden layers.
+        width (int, optional): Width of the hidden layers
+        nonlinearity (function, optional): Nonlinearity.
+        dtype (dtype, optional): Data type.
+
+    Attributes:
+        net (object): MLP, but which expects a different data format.
+    """
+
+    def __init__(
+        self,
+        in_dim: int,
+        relational_out_dim: int,
+        layers: Optional[Tuple[int, ...]] = None,
+        num_layers: Optional[int] = None,
+        width: Optional[int] = None,
+        nonlinearity=None,
+        dtype=None,
+    ):
+        # Check that one of the two specifications is given.
+        self.relational_out_dim = relational_out_dim
+        layers_given = layers is not None
+        num_layers_given = num_layers is not None and width is not None
+        if not (layers_given or num_layers_given):
+            raise ValueError(
+                f"Must specify either `layers` or `num_layers` and `width`."
+            )
+        # Make sure that `layers` is a tuple of various widths.
+        if not layers_given and num_layers_given:
+            layers = (width,) * num_layers
+
+        # Default to ReLUs.
+        if nonlinearity is None:
+            nonlinearity = self.nn.ReLU()
+
+        # Build layers.
+        if len(layers) == 0:
+            self.net = self.nn.Linear(in_dim, relational_out_dim, dtype=dtype)
+        else:
+            net = [self.nn.Linear(in_dim, layers[0], dtype=dtype)]
+            for i in range(1, len(layers)):
+                net.append(nonlinearity)
+                net.append(self.nn.Linear(layers[i - 1], layers[i], dtype=dtype))
+            net.append(nonlinearity)
+            net.append(self.nn.Linear(layers[-1], relational_out_dim, dtype=dtype))
+            self.net = self.nn.Sequential(*net)
+
+    def __call__(self, xc, yc, xt):
+
+        xc = B.transpose(xc)
+        yc = B.transpose(yc)
+        xt = B.transpose(xt)
+
+        # print("xc", xc.shape)
+        # print("yc", yc.shape)
+        # print("xt", xt.shape)
+        out_dim = 1
+        batch_size, set_size, feature_dim = xc.shape
+        _, target_set_size, _ = xt.shape
+
+        # Compute difference between target and context set
+        # (we also concatenate y_i to the context, and 0 for the target)
+        context_xp = B.concat(xc, yc, axis=-1).unsqueeze(1)
+        target_xp = B.concat(xt, torch.zeros(batch_size,target_set_size,1), axis=-1).unsqueeze(
+            2)
+
+        diff_x = (target_xp - context_xp).reshape(batch_size, -1, feature_dim + out_dim)
+
+        batch_size, diff_size, filter_size = diff_x.shape
+        x = diff_x.view(batch_size * diff_size, filter_size)
+
+        x = self.net(x)
+        x = x.view(batch_size, diff_size, self.relational_out_dim)
+
+        encoded_feature_dim = x.shape[-1]
+
+        x = torch.reshape(x, (batch_size, target_set_size, set_size, encoded_feature_dim))
+        encoded_target_x = x.mean(dim=2)
+
+        encoded_target_x = B.transpose(encoded_target_x)
+        return encoded_target_x
 
 
 @register_module

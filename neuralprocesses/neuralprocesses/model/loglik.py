@@ -1,7 +1,7 @@
 import lab as B
 import numpy as np
 
-from .model import Model
+from .model import Model, RelationalModel
 from .util import fix_noise as fix_noise_in_pred
 from .. import _dispatch
 from ..numdata import num_data
@@ -12,7 +12,7 @@ __all__ = ["loglik"]
 @_dispatch
 def loglik(
     state: B.RandomState,
-    model: Model,
+    model,
     contexts: list,
     xt,
     yt,

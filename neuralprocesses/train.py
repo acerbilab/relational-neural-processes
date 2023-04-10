@@ -7,6 +7,7 @@ from functools import partial
 
 import experiment as exp
 import lab as B
+
 import neuralprocesses.torch as nps
 import numpy as np
 import torch
@@ -18,6 +19,7 @@ __all__ = ["main"]
 
 warnings.filterwarnings("ignore", category=ToDenseWarning)
 
+os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
 def train(state, model, opt, objective, gen, *, fix_noise):
     """Train for an epoch."""
@@ -91,6 +93,7 @@ def main(**kw_args):
     parser.add_argument(
         "--model",
         choices=[
+            "rcnp",
             "cnp",
             "gnp",
             "np",
@@ -107,7 +110,7 @@ def main(**kw_args):
             "convcnp-multires",
             "convgnp-multires",
         ],
-        default="convcnp",
+        default="cnp",
     )
     parser.add_argument(
         "--arch",
@@ -283,10 +286,13 @@ def main(**kw_args):
         "fix_noise": None,
         "fix_noise_epochs": 3,
         "width": 256,
+        "relational_width": 64,
+        "dim_relational_embeddings": 128,
         "dim_embedding": 256,
         "enc_same": False,
         "num_heads": 8,
         "num_layers": 6,
+        "num_relational_layers": 3,
         "unet_channels": (64,) * 6,
         "unet_strides": (1,) + (2,) * 5,
         "conv_channels": 64,
@@ -344,6 +350,20 @@ def main(**kw_args):
                 enc_same=config["enc_same"],
                 num_dec_layers=config["num_layers"],
                 width=config["width"],
+                likelihood="het",
+                transform=config["transform"],
+            )
+        elif args.model == "rcnp":
+            model = nps.construct_rnp(
+                dim_x=config["dim_x"],
+                dim_yc=(1,) * config["dim_y"],
+                dim_yt=config["dim_y"],
+                dim_embedding=config["dim_embedding"],
+                enc_same=config["enc_same"],
+                num_dec_layers=config["num_layers"],
+                width=config["width"],
+                relational_width=config['relational_width'],
+                num_relational_enc_layers=config['num_relational_layers'],
                 likelihood="het",
                 transform=config["transform"],
             )
@@ -733,14 +753,14 @@ def main(**kw_args):
                     )
 
                 # Visualise a few predictions by the model.
-                gen = gen_cv()
-                for j in range(5):
-                    exp.visualise(
-                        model,
-                        gen,
-                        path=wd.file(f"train-epoch-{i + 1:03d}-{j + 1}.pdf"),
-                        config=config,
-                    )
+                # gen = gen_cv()
+                # for j in range(5):
+                #     exp.visualise(
+                #         model,
+                #         gen,
+                #         path=wd.file(f"train-epoch-{i + 1:03d}-{j + 1}.pdf"),
+                #         config=config,
+                #     )
 
 
 if __name__ == "__main__":
