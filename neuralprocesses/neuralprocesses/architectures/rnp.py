@@ -121,6 +121,8 @@ def construct_rnp(
     det_encoder = nps.Parallel(
         *(
             nps.Chain(
+                # encode here
+                nps.RelationalEncode(relational_encoder),
                 nps.DeepSet(block if enc_same else construct_mlp(dim_yci)),
                 nps.DeterministicLikelihood(),
             )
@@ -128,12 +130,6 @@ def construct_rnp(
         ),
     )
 
-    # r_encoder = nps.Chain(
-    #     nps.RepeatForAggregateInputs(
-    #         nps.InputsCoder(),
-    #     ),
-    #     relational_encoder
-    # )
 
     encoder = nps.Chain(
         # We need to explicitly copy, because there will be multiple context sets in
@@ -142,7 +138,11 @@ def construct_rnp(
         nps.Parallel(
             nps.Chain(
                 nps.RepeatForAggregateInputs(
-                    nps.InputsCoder(),
+                    # encode here
+                    nps.Chain(
+                        relational_encoder,
+                        nps.RelationalEncode(nps.InputsCoder()),
+                    )
                 ),
                 nps.DeterministicLikelihood(),
             ),
@@ -168,4 +168,4 @@ def construct_rnp(
         likelihood,
         parse_transform(nps, transform=transform),
     )
-    return nps.RelationalModel(relational_encoder, encoder, decoder)
+    return nps.Model(encoder, decoder)

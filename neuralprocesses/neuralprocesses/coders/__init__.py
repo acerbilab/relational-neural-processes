@@ -11,3 +11,4 @@ from .mapdiag import *
 from .nn import *
 from .setconv import *
 from .shaping import *
+from .relational_encode import *
