@@ -10,7 +10,7 @@ from ..mask import Masked
 from ..util import register_module
 from .util import compress_contexts, sample
 
-__all__ = ["Model", "RelationalModel"]
+__all__ = ["Model"]
 
 
 @register_module
@@ -77,6 +77,7 @@ class Model:
         if dtype_enc_sample:
             z = B.cast(dtype_enc_sample, z)
 
+        # xt is never used here
         _, d = code(self.decoder, xz, z, xt, root=True, **kw_args)
 
         return state, d
@@ -192,11 +193,11 @@ class RelationalModel:
         if "noiseless" in enc_kw_args:
             del enc_kw_args["noiseless"]
 
-        encoded_xc = self.relational_encoder(xc, yc, xc)
-        encoded_xt = self.relational_encoder(xc, yc, xt)
+        # _, encoded_xc = code(self.relational_encoder, xc, yc, xc, root=True)
+        # _, encoded_xt = code(self.relational_encoder, xc, yc, xt, root=True)
 
-        xz, pz = code(self.encoder, encoded_xc, yc, encoded_xt, root=True, **enc_kw_args)
-
+        # xz, pz = code(self.encoder, encoded_xc, yc, encoded_xt, root=True, **enc_kw_args)
+        xz, pz = code(self.encoder, xc, yc, xt, root=True, **enc_kw_args)
         # Sample and convert sample to the right data type.
         state, z = sample(state, pz, num=num_samples)
         if dtype_enc_sample:
