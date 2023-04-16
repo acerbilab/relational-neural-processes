@@ -177,9 +177,6 @@ class RelationalMLP:
         yc = B.transpose(yc)
         xt = B.transpose(xt)
 
-        # print("xc", xc.shape)
-        # print("yc", yc.shape)
-        # print("xt", xt.shape)
         out_dim = 1
         batch_size, set_size, feature_dim = xc.shape
         _, target_set_size, _ = xt.shape
@@ -187,8 +184,7 @@ class RelationalMLP:
         # Compute difference between target and context set
         # (we also concatenate y_i to the context, and 0 for the target)
         context_xp = B.concat(xc, yc, axis=-1).unsqueeze(1)
-        target_xp = B.concat(xt, torch.zeros(batch_size,target_set_size,1), axis=-1).unsqueeze(
-            2)
+        target_xp = B.concat(xt, torch.zeros(batch_size, target_set_size, 1), axis=-1).unsqueeze(2)
 
         diff_x = (target_xp - context_xp).reshape(batch_size, -1, feature_dim + out_dim)
 
@@ -205,6 +201,18 @@ class RelationalMLP:
 
         encoded_target_x = B.transpose(encoded_target_x)
         return encoded_target_x
+
+
+# @_dispatch
+# def code(coder: RelationalMLP, xz, z: B.Numeric, x, **kw_args):
+#     z = coder(xz, z, x)
+#     xz = None
+#     return xz, z
+
+@_dispatch
+def code(coder: RelationalMLP, xz, z: B.Numeric, x, **kw_args):
+    xz = coder(xz, z, x)
+    return xz, z
 
 
 @register_module
