@@ -9,7 +9,6 @@ from .. import _dispatch
 from ..datadims import data_dims
 from ..util import register_module, compress_batch_dimensions, with_first_last
 
-import torch
 
 __all__ = ["Linear", "MLP", "UNet", "ConvNet", "Conv", "ResidualBlock", "RelationalMLP"]
 
@@ -172,7 +171,6 @@ class RelationalMLP:
             self.net = self.nn.Sequential(*net)
 
     def __call__(self, xc, yc, xt):
-
         xc = B.transpose(xc)
         yc = B.transpose(yc)
         xt = B.transpose(xt)
@@ -184,7 +182,7 @@ class RelationalMLP:
         # Compute difference between target and context set
         # (we also concatenate y_i to the context, and 0 for the target)
         context_xp = B.concat(xc, yc, axis=-1).unsqueeze(1)
-        target_xp = B.concat(xt, torch.zeros(batch_size, target_set_size, 1), axis=-1).unsqueeze(2)
+        target_xp = B.concat(xt, B.cast(xt.dtype, B.zeros(batch_size, target_set_size, 1)), axis=-1).unsqueeze(2)
 
         diff_x = (target_xp - context_xp).reshape(batch_size, -1, feature_dim + out_dim)
 
@@ -196,18 +194,12 @@ class RelationalMLP:
 
         encoded_feature_dim = x.shape[-1]
 
-        x = torch.reshape(x, (batch_size, target_set_size, set_size, encoded_feature_dim))
+        x = x.view(batch_size, target_set_size, set_size, encoded_feature_dim)
         encoded_target_x = x.mean(dim=2)
 
         encoded_target_x = B.transpose(encoded_target_x)
         return encoded_target_x
 
-
-# @_dispatch
-# def code(coder: RelationalMLP, xz, z: B.Numeric, x, **kw_args):
-#     z = coder(xz, z, x)
-#     xz = None
-#     return xz, z
 
 @_dispatch
 def code(coder: RelationalMLP, xz, z: B.Numeric, x, **kw_args):
