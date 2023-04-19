@@ -21,6 +21,7 @@ warnings.filterwarnings("ignore", category=ToDenseWarning)
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
+
 def train(state, model, opt, objective, gen, *, fix_noise):
     """Train for an epoch."""
     vals = []
@@ -94,6 +95,7 @@ def main(**kw_args):
         "--model",
         choices=[
             "rcnp",
+            "rgnp",
             "cnp",
             "gnp",
             "np",
@@ -110,7 +112,7 @@ def main(**kw_args):
             "convcnp-multires",
             "convgnp-multires",
         ],
-        default="cnp",
+        default="rcnp",
     )
     parser.add_argument(
         "--arch",
@@ -365,6 +367,20 @@ def main(**kw_args):
                 relational_width=config['relational_width'],
                 num_relational_enc_layers=config['num_relational_layers'],
                 likelihood="het",
+                transform=config["transform"],
+            )
+        elif args.model == "rgnp":
+            model = nps.construct_rnp(
+                dim_x=config["dim_x"],
+                dim_yc=(1,) * config["dim_y"],
+                dim_yt=config["dim_y"],
+                dim_embedding=config["dim_embedding"],
+                enc_same=config["enc_same"],
+                num_dec_layers=config["num_layers"],
+                width=config["width"],
+                relational_width=config['relational_width'],
+                num_relational_enc_layers=config['num_relational_layers'],
+                likelihood="lowrank",
                 transform=config["transform"],
             )
         elif args.model == "gnp":
@@ -753,14 +769,14 @@ def main(**kw_args):
                     )
 
                 # Visualise a few predictions by the model.
-                # gen = gen_cv()
-                # for j in range(5):
-                #     exp.visualise(
-                #         model,
-                #         gen,
-                #         path=wd.file(f"train-epoch-{i + 1:03d}-{j + 1}.pdf"),
-                #         config=config,
-                #     )
+                gen = gen_cv()
+                for j in range(5):
+                    exp.visualise(
+                        model,
+                        gen,
+                        path=wd.file(f"train-epoch-{i + 1:03d}-{j + 1}.pdf"),
+                        config=config,
+                    )
 
 
 if __name__ == "__main__":
