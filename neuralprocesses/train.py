@@ -163,6 +163,7 @@ def main(**kw_args):
         choices=["random", "interpolation", "forecasting", "reconstruction"],
     )
     parser.add_argument("--patch", type=str)
+    parser.add_argument("--seed", type=int, default=0)
 
     if kw_args:
         # Load the arguments from the keyword arguments passed to the function.
@@ -256,6 +257,7 @@ def main(**kw_args):
         args.model,
         *((args.arch,) if hasattr(args, "arch") else ()),
         args.objective,
+        str(args.seed),
         log=f"log{suffix}.txt",
         diff=f"diff{suffix}.txt",
         observe=observe,
@@ -273,7 +275,7 @@ def main(**kw_args):
 
     B.set_global_device(device)
     # Maintain an explicit random state through the execution.
-    state = B.create_random_state(torch.float32, seed=0)
+    state = B.create_random_state(torch.float32, seed=args.seed)
 
     # General config.
     config = {
