@@ -26,14 +26,3 @@ def code(coder: RelationalEncode, xz, z, x, **kw_args):
     xz, z = code(coder.coder, xz, z, xz, **kw_args)
     return xz, z
 
-
-@register_module
-class Test_relational_encode:
-    def __init__(self, inputs_encoder):
-        self.inputs_encoder = inputs_encoder
-
-
-@_dispatch
-def code(coder: Test_relational_encode, xz, z, x, **kw_args):
-    xz, z = code(coder.inputs_encoder, xz, z, xz, **kw_args)
-    return xz, z
