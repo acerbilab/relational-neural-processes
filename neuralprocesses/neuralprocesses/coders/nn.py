@@ -8,6 +8,7 @@ from plum import convert
 from .. import _dispatch
 from ..datadims import data_dims
 from ..util import register_module, compress_batch_dimensions, with_first_last
+from ..parallel import Parallel
 
 
 __all__ = ["Linear", "MLP", "UNet", "ConvNet", "Conv", "ResidualBlock", "RelationalMLP"]
@@ -205,6 +206,20 @@ class RelationalMLP:
 def code(coder: RelationalMLP, xz, z: B.Numeric, x, **kw_args):
     xz = coder(xz, z, x)
     return xz, z
+
+@_dispatch
+def code(coder: RelationalMLP, xz: Parallel, z: Parallel, x, **kw_args):
+    xz = xz[kw_args['select_channel']]
+    z = z[kw_args['select_channel']]
+    xz = coder(xz, z, x)
+    return xz, z
+
+
+# encode with all context sets, need to modify the input dimension of decoder
+@_dispatch
+def code(coder: RelationalMLP, xz: Parallel, z: Parallel, x, **kw_args):
+    xz = [coder(xzi, zi, x) for (xzi, zi) in zip(xz, z)]
+    return B.concat(*xz, axis=1), B.concat(*z, axis=2)
 
 
 @register_module
