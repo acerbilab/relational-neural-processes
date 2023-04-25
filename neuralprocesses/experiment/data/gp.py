@@ -20,7 +20,7 @@ def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, 
     config["margin"] = 0.1
     if args.dim_x == 1:
         config["points_per_unit"] = 64
-    elif args.dim_x == 2:
+    elif args.dim_x != 1:  # before: args.dim_x == 2
         # Reduce the PPU to reduce memory consumption.
         config["points_per_unit"] = 32
         # Since the PPU is reduced, we can also take off a layer of the UNet.
