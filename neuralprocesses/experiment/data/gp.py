@@ -90,6 +90,7 @@ def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, 
 
     return gen_train, gen_cv, gens_eval
 
+
 names = [
     "eq",
     "matern",
@@ -99,6 +100,7 @@ names = [
     "mix-weakly-periodic",
     "sawtooth",
     "mixture",
+    "hyper",
 ]
 
 for name in names:

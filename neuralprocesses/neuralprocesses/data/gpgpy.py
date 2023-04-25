@@ -43,15 +43,17 @@ class GPGenerator(SyntheticGenerator):
         noise=0.05**2,
         pred_logpdf=False,
         pred_logpdf_diag=False,
+        verbose=False,
         **kw_args,
     ):
-        if kernel is not None:
+        if verbose and kernel is not None:
             print("WARNING: The chosen kernel will be ignored below")
         self.kernel = kernel
-        assert not pred_logpdf, "Not implemented so far"
-        assert not pred_logpdf_diag, "Not implemented so far"
-        self.pred_logpdf = pred_logpdf
-        self.pred_logpdf_diag = pred_logpdf_diag
+        # TODO: Change that
+        if verbose and (pred_logpdf or pred_logpdf_diag):
+            print("WARNING: pred_logpdf is not yet available")
+        self.pred_logpdf = False
+        self.pred_logpdf_diag = False
         super().__init__(*args, **kw_args)
         self.noise = noise
 
@@ -103,23 +105,24 @@ class GPGenerator(SyntheticGenerator):
             # COMMENT MH: We ignore the state for now
 
             # TODO: This is currently full of messy tricks, fix them
-            self.kernel = sample_kernel()
+            self.kernel = sample_kernel(single=True)
             # The noise gets turned in an array somewhere in the library
             #   and I currently don't have the nerve to check where
             if self.noise is not None:
-                self.noise = np.float32(self.noise)
-            xc = th.from_numpy(xc).float()
-            xt = th.from_numpy(xt).float()
+                self.noise = np.float64(self.noise)
+            xc = xc.float()
+            xt = xt.float()
+
             yc = (
                 gpy.distributions.MultivariateNormal(
-                    th.zeros_like(th.squeeze(xc)), self.kernel(xc)
+                    th.zeros_like(xc.squeeze(-1)), self.kernel(xc)
                 )
                 .sample()
                 .unsqueeze(-1)
             )
             yt = (
                 gpy.distributions.MultivariateNormal(
-                    th.zeros_like(th.squeeze(xt)), self.kernel(xt)
+                    th.zeros_like(xt.squeeze(-1)), self.kernel(xt)
                 )
                 .sample()
                 .unsqueeze(-1)

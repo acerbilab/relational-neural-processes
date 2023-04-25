@@ -108,21 +108,24 @@ def sample_basic_kernel(name=None, scale=False):
     return kernel
 
 
-def get_names():
+def get_names(single=False):
     "Not the nices formulation, but it works for now"
-    foo = [
+    basic = [
         "None",
         "EQ",
         "periodic",
-        "white",
+        # "white",  # TODO: Currently gives some dimensionality error in batch mode
         "matern12",
         "matern32",
         "matern52",
         "cosine",
         "linear",
     ]
+    if single:
+        # Don't return the None kernel
+        return basic[1:]
 
-    bar = np.unique([sorted((f, b)) for f in foo for b in foo], axis=0)
+    bar = np.unique([sorted((f, b)) for f in basic for b in basic], axis=0)
     names = []
     for pair in bar:
         # Get the single kernels
@@ -141,12 +144,15 @@ def get_names():
     return names
 
 
-def generate_kernel(pair):
-    kernel = scale_kernel(np.prod([sample_basic_kernel(name) for name in pair]))
+def generate_kernel(names, single):
+    if single:
+        kernel = scale_kernel(sample_basic_kernel(names))
+    else:
+        kernel = scale_kernel(np.prod([sample_basic_kernel(name) for name in names]))
     return kernel
 
 
-def sample_kernel():
-    names = get_names()
-    pair = names[np.random.choice(len(names))]
-    return generate_kernel(pair)
+def sample_kernel(single=False):
+    names = get_names(single)
+    names = names[np.random.choice(len(names))]
+    return generate_kernel(names, single)

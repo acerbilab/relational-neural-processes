@@ -2,6 +2,7 @@ import lab as B
 from stheno import EQ, Matern52
 
 from .gp import GPGenerator
+from .gpgpy import GPGenerator
 from .mixture import MixtureGenerator
 from .mixgp import MixtureGPGenerator
 from .sawtooth import SawtoothGenerator
@@ -81,6 +82,20 @@ def construct_predefined_gens(
         )
         for name, kernel in kernels.items()
     }
+
+    # NOTE: Temporary solution for our hyperparameter learning
+    gens["hyper"] = GPGenerator(
+        dtype,
+        seed=seed,
+        noise=0.05,
+        kernel=None,
+        num_context=UniformDiscrete(1, 30 * dim_x),
+        num_target=UniformDiscrete(50 * dim_x, 50 * dim_x),
+        pred_logpdf=pred_logpdf,
+        pred_logpdf_diag=pred_logpdf_diag,
+        **config,
+    )
+
     # Previously, the maximum number of context points was `75 * dim_x`. However, if
     # `dim_x == 1`, then this is too high. We therefore change that case, and keep all
     # other cases the same.
