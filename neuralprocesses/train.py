@@ -143,7 +143,7 @@ def main(**kw_args):
     parser.add_argument("--evaluate", action="store_true")
     parser.add_argument("--evaluate-last", action="store_true")
     parser.add_argument("--evaluate-fast", action="store_true")
-    parser.add_argument("--evaluate-num-plots", type=int, default=5)
+    parser.add_argument("--evaluate-num-plots", type=int, default=1)
     parser.add_argument(
         "--evaluate-objective",
         choices=["loglik", "elbo"],
@@ -276,6 +276,7 @@ def main(**kw_args):
     B.set_global_device(device)
     # Maintain an explicit random state through the execution.
     state = B.create_random_state(torch.float32, seed=args.seed)
+    B.set_random_seed(args.seed)
 
     # General config.
     config = {
