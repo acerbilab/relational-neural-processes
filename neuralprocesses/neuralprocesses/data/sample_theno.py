@@ -1,65 +1,52 @@
 ######
-# Various kernels as used in Simpson et al. (2021)
-#####
+# A Stheno version of `kernelgrammar.py`
 
 import numpy as np
 import torch as th
-import gpytorch as gpy
-import torch.distributions as thd
-import torch.nn as nn
-
-# TODO: For now all lengthscales are shared over the dimensions -> Generalize
-# TODO: Implement sampling of kernels
+import stheno.torch as st
 
 
 def scale_kernel(kernel):
-    kernel = gpy.kernels.ScaleKernel(kernel)
-    kernel.outputscale = th.exp(th.randn(1, 1))
-    return kernel
+    outputscale = th.exp(th.randn(1))
+    outputscale = np.exp(np.random.randn())
+    return outputscale * kernel
+
+
+def sample_length():
+    # return th.exp(th.randn(1))
+    return np.exp(np.random.randn())
 
 
 def generate_rbf():
-    kernel = gpy.kernels.RBFKernel()
-    kernel.lengthscale = th.exp(th.randn(1, 1))
-    return kernel
+    return st.EQ().stretch(sample_length())
 
 
 def generate_periodic():
+    raise NotImplementedError("See doc for a function on how to make kernels period")
     kernel = gpy.kernels.PeriodicKernel()
     kernel.lengthscale = th.exp(th.randn(1, 1))
     kernel.period_length = th.exp(th.randn(1, 1))
     return kernel
 
 
-class WhiteNoise(gpy.kernels.Kernel):
-    # This can probably be done more elegantly with newer pytorch versions
-    # Adapted from https://github.com/cornellius-gp/gpytorch/blob/2fab88ea90f1785130313bb257a090fe07ef3f61/gpytorch/kernels/white_noise_kernel.py
-    # TODO: Extend to multiple dimensions
-    noise = th.exp(th.randn(1))
-
-    def forward(self, x1, x2, **params):
-        if (
-            x1.shape[-2] == x2.shape[-2]
-            and x1.shape[-2] == self.noise.shape[-1]
-            and th.equal(x1, x2)
-        ):
-            return th.diag(self.noise)
-        else:
-            return th.zeros((x1.shape[-3], x1.shape[-2], x1.shape[-1]))
-
-
 def generate_white():
+    raise NotImplementedError("Implement manually")
     return WhiteNoise()
 
 
 def generate_matern(nu):
     assert nu in [1 / 2, 3 / 2, 5 / 2]
-    kernel = gpy.kernels.MaternKernel(nu=nu)
-    kernel.lengthscale = th.exp(th.randn(1, 1))
-    return kernel
+    if nu == 1 / 2:
+        kernel = st.Matern12()
+    elif nu == 3 / 2:
+        kernel = st.Matern32()
+    elif nu == 5 / 2:
+        kernel = st.Matern52()
+    return kernel.stretch(sample_length())
 
 
 def generate_cosine():
+    raise NotImplementedError
     kernel = gpy.kernels.CosineKernel()
     # TODO: Simpson claims not to enforce a positivity constraint on the lengthscale
     #   I don't get why that should work... and thus just take the absolute for now
@@ -67,25 +54,26 @@ def generate_cosine():
     return kernel
 
 
-class ModifiedLinear(gpy.kernels.Kernel):
-    # Simpson et al. use K(x,z) = s^2 (x - c)(z - c) while gpy provides K(x,z) = s^2x * z
-    is_stationary = False
-    linear = gpy.kernels.LinearKernel()
-    shift = nn.Parameter(thd.Cauchy(0, 5).sample((1, 1)))
-    shift.requires_grad = False
+# class ModifiedLinear(gpy.kernels.Kernel):
+#     # Simpson et al. use K(x,z) = s^2 (x - c)(z - c) while gpy provides K(x,z) = s^2x * z
+#     is_stationary = False
+#     linear = gpy.kernels.LinearKernel()
+#     shift = nn.Parameter(thd.Cauchy(0, 5).sample((1, 1)))
+#     shift.requires_grad = False
+#
+#     def forward(self, x1, x2, **params):
+#         # TODO: Do this properly
+#         self.shift = self.shift.to(x1.device)
+#         self.linear = self.linear.to(x1.device)
+#
+#         x1_shift = x1 - self.shift
+#         x2_shift = x2 - self.shift
+#         return self.linear(x1_shift, x2_shift)
 
-    def forward(self, x1, x2, **params):
-        # TODO: Do this properly
-        self.shift = self.shift.to(x1.device)
-        self.linear = self.linear.to(x1.device)
 
-        x1_shift = x1 - self.shift
-        x2_shift = x2 - self.shift
-        return self.linear(x1_shift, x2_shift)
-
-
+# TODO: Not the full linear kernel from Simpson et al.
 def generate_linear():
-    return ModifiedLinear()
+    return st.Linear().stretch(sample_length())
 
 
 def sample_basic_kernel(name=None, scale=False):
@@ -114,52 +102,64 @@ def sample_basic_kernel(name=None, scale=False):
     return kernel
 
 
-# TODO: Extend with addition
-def get_names(single=False):
+def get_names(single=False, product=False):
     "Not the nices formulation, but it works for now"
     basic = [
         "None",
         "EQ",
         # "periodic",
         # "white",  # TODO: Currently gives some dimensionality error in batch mode
-        # "matern12",
-        # "matern32",
-        # "matern52",
+        "matern12",
+        "matern32",
+        "matern52",
         # "cosine",
-        # "linear",
+        "linear",
     ]
     if single:
         # Don't return the None kernel
         return basic[1:]
 
-    bar = np.unique([sorted((f, b)) for f in basic for b in basic], axis=0)
+    raw = np.unique([sorted((f, b)) for f in basic for b in basic], axis=0)
     names = []
-    for pair in bar:
+    for pair in raw:
         # Get the single kernels
         if "None" in pair:
             if pair[0] == pair[1]:
+                continue
+            # TODO: Some device issues with stheano
+            if "linear" in pair:
                 continue
             names.append(list(pair["None" != pair]))
         # Remove noise and EQ products as already available in the single
         elif "white" in pair:
             continue
-        elif sum("EQ" == pair) == 2:
+        elif product and (sum("EQ" == pair) == 2):
+            continue
+        elif sum("linear" == pair) == 2:
+            # TODO: Some device issues with stheano
             continue
         else:
             names.append(list(pair))
     # Simpson et al. get 34, I get 36. TODO: Figure out why
+
     return names
 
 
-def generate_kernel(names, single):
+def generate_kernel(names, single, product):
     if single:
         kernel = scale_kernel(sample_basic_kernel(names))
     else:
-        kernel = scale_kernel(np.prod([sample_basic_kernel(name) for name in names]))
+        if product:
+            kernel = scale_kernel(
+                np.prod([sample_basic_kernel(name) for name in names])
+            )
+        else:
+            kernel = np.sum([scale_kernel(sample_basic_kernel(name)) for name in names])
     return kernel
 
 
 def sample_kernel(single=False):
-    names = get_names(single)
+    product = np.random.randn() > 0
+    names = get_names(single, product)
     names = names[np.random.choice(len(names))]
-    return generate_kernel(names, single)
+    return generate_kernel(names, single, product)

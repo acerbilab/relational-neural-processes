@@ -88,12 +88,12 @@ def construct_rnp(
         )
 
     mlp_out_channels, selector, likelihood = construct_likelihood(
-            nps,
-            spec=likelihood,
-            dim_y=dim_yt,
-            num_basis_functions=num_basis_functions,
-            dtype=dtype,
-        )
+        nps,
+        spec=likelihood,
+        dim_y=dim_yt,
+        num_basis_functions=num_basis_functions,
+        dtype=dtype,
+    )
 
     def construct_relational_mlp(dim_yci):
         return nps.RelationalMLP(
@@ -103,7 +103,6 @@ def construct_rnp(
             width=relational_width,
             dtype=dtype,
         )
-
 
     def construct_mlp(dim_yci):
         return nps.MLP(
@@ -130,7 +129,6 @@ def construct_rnp(
         ),
     )
 
-
     encoder = nps.Chain(
         # We need to explicitly copy, because there will be multiple context sets in
         # parallel, which will otherwise dispatch to the wrong method.
@@ -154,7 +152,9 @@ def construct_rnp(
         nps.RepeatForAggregateInputs(
             nps.Chain(
                 nps.MLP(
-                    in_dim=dim_relational_embedding + dim_embedding * len(dim_yc) + dim_lv,
+                    in_dim=dim_relational_embedding
+                    + dim_embedding * len(dim_yc)
+                    + dim_lv,
                     out_dim=mlp_out_channels,
                     num_layers=num_dec_layers,
                     # The capacity of this MLP should increase with the number of

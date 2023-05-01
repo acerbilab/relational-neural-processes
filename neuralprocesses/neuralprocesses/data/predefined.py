@@ -2,9 +2,9 @@ import lab as B
 from stheno import EQ, Matern52
 
 from .gp import GPGenerator
-from .gpgpy import GPGenerator
-from .mixture import MixtureGenerator
+from .gpsample import GPGenerator
 from .mixgp import MixtureGPGenerator
+from .mixture import MixtureGenerator
 from .sawtooth import SawtoothGenerator
 from ..dist.uniform import UniformDiscrete, UniformContinuous
 
