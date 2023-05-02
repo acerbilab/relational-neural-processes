@@ -122,7 +122,7 @@ def construct_rnp(
         *(
             nps.Chain(
                 # encode here
-                nps.RelationalEncode(relational_encoder),
+                nps.RelationalEncode(relational_encoder if enc_same else construct_relational_mlp(dim_yci)),
                 nps.DeepSet(block if enc_same else construct_mlp(dim_yci)),
                 nps.DeterministicLikelihood(),
             )
