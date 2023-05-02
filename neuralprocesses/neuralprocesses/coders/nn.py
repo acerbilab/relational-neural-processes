@@ -142,6 +142,7 @@ class RelationalMLP:
         width: Optional[int] = None,
         nonlinearity=None,
         dtype=None,
+        comparison_function="euclidean"
     ):
         # Check that one of the two specifications is given.
         self.relational_out_dim = relational_out_dim
@@ -171,6 +172,8 @@ class RelationalMLP:
             net.append(self.nn.Linear(layers[-1], relational_out_dim, dtype=dtype))
             self.net = self.nn.Sequential(*net)
 
+        self.comparison_function = comparison_function
+
     def __call__(self, xc, yc, xt):
         xc = B.transpose(xc)
         yc = B.transpose(yc)
@@ -185,10 +188,15 @@ class RelationalMLP:
         context_xp = B.concat(xc, yc, axis=-1).unsqueeze(1)
         target_xp = B.concat(xt, B.cast(xt.dtype, B.zeros(batch_size, target_set_size, 1)), axis=-1).unsqueeze(2)
 
-        diff_x = (target_xp - context_xp).reshape(batch_size, -1, feature_dim + out_dim)
+        if self.comparison_function == "euclidean":
+            diff_x = B.sqrt(B.sum((target_xp - context_xp)**2, axis=-1).reshape(batch_size, -1, 1))
+            batch_size, diff_size, filter_size = diff_x.shape
+            x = diff_x.view(batch_size * diff_size, filter_size)
 
-        batch_size, diff_size, filter_size = diff_x.shape
-        x = diff_x.view(batch_size * diff_size, filter_size)
+        else:
+            diff_x = (target_xp - context_xp).reshape(batch_size, -1, feature_dim + out_dim)
+            batch_size, diff_size, filter_size = diff_x.shape
+            x = diff_x.view(batch_size * diff_size, filter_size)
 
         x = self.net(x)
         x = x.view(batch_size, diff_size, self.relational_out_dim)

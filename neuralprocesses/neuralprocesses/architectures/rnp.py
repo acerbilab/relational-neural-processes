@@ -30,6 +30,7 @@ def construct_rnp(
     transform=None,
     dtype=None,
     nps=nps,
+    comparison_function="euclidean",
 ):
     """A Relational Neural Process.
 
@@ -97,11 +98,12 @@ def construct_rnp(
 
     def construct_relational_mlp(dim_yci):
         return nps.RelationalMLP(
-            in_dim=dim_x + dim_yci,
+            in_dim=1 if comparison_function == "euclidean" else dim_x + dim_yci,
             relational_out_dim=dim_relational_embedding,
             num_layers=num_relational_enc_layers,
             width=relational_width,
             dtype=dtype,
+            comparison_function=comparison_function
         )
 
 
