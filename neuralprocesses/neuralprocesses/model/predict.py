@@ -16,6 +16,7 @@ def predict(
     *,
     num_samples=50,
     batch_size=16,
+    canonical_rule=None,
 ):
     """Use a model to predict.
 
@@ -55,6 +56,7 @@ def predict(
             # Run likelihood with `float64`s to ease the numerics as much as possible.
             dtype_lik=float64,
             num_samples=this_num_samples,
+            canonical_rule=canonical_rule,
         )
 
         # If the number of samples is equal to one but `num_samples > 1`, then the

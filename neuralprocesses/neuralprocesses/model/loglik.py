@@ -1,7 +1,7 @@
 import lab as B
 import numpy as np
 
-from .model import Model, RelationalModel
+from .model import Model
 from .util import fix_noise as fix_noise_in_pred
 from .. import _dispatch
 from ..numdata import num_data
@@ -21,6 +21,7 @@ def loglik(
     batch_size=16,
     normalise=False,
     fix_noise=None,
+    canonical_rule=None,
     **kw_args,
 ):
     """Log-likelihood objective.
@@ -60,6 +61,7 @@ def loglik(
             num_samples=this_num_samples,
             dtype_enc_sample=float,
             dtype_lik=float64,
+            canonical_rule=canonical_rule,
             **kw_args,
         )
         pred = fix_noise_in_pred(pred, fix_noise)

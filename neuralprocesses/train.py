@@ -164,6 +164,7 @@ def main(**kw_args):
     )
     parser.add_argument("--patch", type=str)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--canonical-rule", type=str, choices=[None, "sum"], default=None)
 
     if kw_args:
         # Load the arguments from the keyword arguments passed to the function.
@@ -219,6 +220,10 @@ def main(**kw_args):
         "fullconvgnp",
     }:
         del args.arch
+
+    # no need to sort when dim_x = 1
+    if args.dim_x == 1:
+        args.canonical_rule = None
 
     # Remove the dimensionality specification if the experiment doesn't need it.
     if not exp.data[args.data]["requires_dim_x"]:
@@ -563,11 +568,13 @@ def main(**kw_args):
             nps.loglik,
             num_samples=args.num_samples,
             normalise=not args.unnormalised,
+            canonical_rule=args.canonical_rule,
         )
         objective_cv = partial(
             nps.loglik,
             num_samples=args.num_samples,
             normalise=not args.unnormalised,
+            canonical_rule=args.canonical_rule,
         )
         objectives_eval = [
             (
@@ -577,6 +584,7 @@ def main(**kw_args):
                     num_samples=args.evaluate_num_samples,
                     batch_size=args.evaluate_batch_size,
                     normalise=not args.unnormalised,
+                    canonical_rule=args.canonical_rule,
                 ),
             )
         ]
@@ -779,6 +787,7 @@ def main(**kw_args):
                         gen,
                         path=wd.file(f"train-epoch-{i + 1:03d}-{j + 1}.pdf"),
                         config=config,
+                        canonical_rule=args.canonical_rule
                     )
 
 
