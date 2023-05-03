@@ -8,7 +8,7 @@ import numpy as np
 
 from .data import SyntheticGenerator, new_batch
 
-from .kernelgrammar import sample_kernel
+from .kernelgrammar_gpytorch import sample_kernel
 
 __all__ = ["GPGenerator"]
 

@@ -4,7 +4,7 @@ import warnings
 
 
 from .data import SyntheticGenerator, new_batch
-from .sample_theno import sample_kernel
+from .kernelgrammar_stheno import sample_kernel
 
 __all__ = ["GPGenerator"]
 
