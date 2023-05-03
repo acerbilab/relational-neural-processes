@@ -1,6 +1,8 @@
 import lab as B
 import stheno
 import warnings
+import math
+import numpy as np
 
 
 from .data import SyntheticGenerator, new_batch
@@ -72,38 +74,43 @@ class GPGenerator(SyntheticGenerator):
                     warnings.simplefilter("ignore")
                     with stheno.Measure() as prior:
                         # self.kernel = sample_kernel(True)
-                        self.kernel = sample_kernel(single=False)
-                        # print(self.kernel)
+                        # self.kernel = sample_kernel(single=False)
+                        # Dutordoir2022 claims to sample lengthscales from
+                        #   log N(log(0.5),sqrt(0.5)) but that makes no sense
+                        #   so we sample from exp N(log(0.5),0.5) (the sqrt would work as well
+                        #   but looks strange, we can change that later if we want to
+                        self.kernel = stheno.Matern32().stretch(
+                            np.exp(math.log(0.5) + math.sqrt(0.5) * np.random.randn())
+                        )
                         # self.kernel = stheno.EQ()
+                        # self.kernel = stheno.Matern32()
                         f = stheno.GP(self.kernel)
                         # Construct FDDs for the context and target points.
                         fc = f(xc, self.noise)
                         ft = f(xt, self.noise)
             else:
                 raise NotImplementedError
-                with stheno.Measure() as prior:
-                    # Construct latent processes and initialise output processes.
-                    us = [stheno.GP(self.kernel) for _ in range(self.dim_y_latent)]
-                    fs = [0 for _ in range(self.dim_y)]
-                    # Perform matrix multiplication.
-                    for i in range(self.dim_y):
-                        for j in range(self.dim_y_latent):
-                            fs[i] = fs[i] + self.h[i, j] * us[j]
-                    # Finally, construct the multi-output GP.
-                    f = stheno.cross(*fs)
-                    # Construct FDDs for the context and target points.
-                    fc = f(
-                        tuple(fi(xci) for fi, xci in zip(fs, xcs)),
-                        self.noise,
-                    )
-                    ft = f(
-                        tuple(fi(xti) for fi, xti in zip(fs, xts)),
-                        self.noise,
-                    )
+                # with stheno.Measure() as prior:
+                #     # Construct latent processes and initialise output processes.
+                #     us = [stheno.GP(self.kernel) for _ in range(self.dim_y_latent)]
+                #     fs = [0 for _ in range(self.dim_y)]
+                #     # Perform matrix multiplication.
+                #     for i in range(self.dim_y):
+                #         for j in range(self.dim_y_latent):
+                #             fs[i] = fs[i] + self.h[i, j] * us[j]
+                #     # Finally, construct the multi-output GP.
+                #     f = stheno.cross(*fs)
+                #     # Construct FDDs for the context and target points.
+                #     fc = f(
+                #         tuple(fi(xci) for fi, xci in zip(fs, xcs)),
+                #         self.noise,
+                #     )
+                #     ft = f(
+                #         tuple(fi(xti) for fi, xti in zip(fs, xts)),
+                #         self.noise,
+                #     )
 
-            # print(self.noise)
             # Sample context and target set.
-            # th.manual_seed(42)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 self.state, yc, yt = prior.sample(self.state, fc, ft)
@@ -113,14 +120,7 @@ class GPGenerator(SyntheticGenerator):
             # Make the new batch.
             batch = {}
             set_batch(batch, yc, yt)
-            # print("GP")
-            # print(xt[0].t())
-            # print(batch["xt"][0])
-            # print(yt[0].t())
-            # print(batch["yt"][0])
-            # print(len(batch["contexts"]))
-            # assert False
-            #
+
             # Compute predictive logpdfs.
             if self.pred_logpdf or self.pred_logpdf_diag:
                 post = prior | (fc, yc)
