@@ -40,7 +40,7 @@ class GPGenerator(SyntheticGenerator):
         self,
         *args,
         kernel=None,
-        noise=0.05**2,
+        # noise=0.05**2,
         pred_logpdf=False,
         pred_logpdf_diag=False,
         verbose=False,
@@ -55,8 +55,9 @@ class GPGenerator(SyntheticGenerator):
         self.pred_logpdf = False
         self.pred_logpdf_diag = False
         super().__init__(*args, **kw_args)
-        self.noise = noise
+        # self.noise = noise
 
+    @th.no_grad()
     def generate_batch(self):
         """Generate a batch.
 
@@ -106,34 +107,62 @@ class GPGenerator(SyntheticGenerator):
 
             # TODO: This is currently full of messy tricks, fix them
             self.kernel = sample_kernel(single=True)
+            if xc.device.type == "cuda":
+                self.kernel = self.kernel.to("cuda")
             # The noise gets turned in an array somewhere in the library
             #   and I currently don't have the nerve to check where
-            if self.noise is not None:
-                self.noise = np.float64(self.noise)
-            xc = xc.float()
-            xt = xt.float()
+            # if self.noise is not None:
+            #     print(self.noise.dtype)
+            #     assert self.noise == 0.05
+            #     self.noise = 0.05
+            xc = xc.double()
+            xt = xt.double()
 
+            import matplotlib.pyplot as plt
+
+            self.noise = self.noise.double()
+
+            # K = self.kernel(xc) + self.noise * th.eye(xc.shape[1])
+            # print(K.to_dense())
+
+            # th.manual_seed(42)
             yc = (
                 gpy.distributions.MultivariateNormal(
-                    th.zeros_like(xc.squeeze(-1)), self.kernel(xc)
+                    th.zeros(xc.shape[:2]).double(),
+                    self.kernel(xc).double() + self.noise * th.eye(xc.shape[1]),
                 )
                 .sample()
                 .unsqueeze(-1)
             )
             yt = (
                 gpy.distributions.MultivariateNormal(
-                    th.zeros_like(xt.squeeze(-1)), self.kernel(xt)
+                    th.zeros(xt.shape[:2]).double(),
+                    self.kernel(xt).double() + self.noise * th.eye(xt.shape[1]),
                 )
                 .sample()
                 .unsqueeze(-1)
             )
-            yc = (yc + self.noise * th.randn_like(yc)).numpy()
-            yt = (yt + self.noise * th.randn_like(yt)).numpy()
+            # self.state, yc, yt = prior.sample(self.state, fc, ft)
+            # yc = yc + self.noise * th.randn_like(yc)  # .numpy()
+            # yt = yt + self.noise * th.randn_like(yt)  # .numpy()
+            # print(self.noise)
+            # print(yc.mean(), yc.std())
+            # print(self.noise)
+
+            # print(yc.shape)
+            # print(yt.shape)
 
             # Make the new batch.
             batch = {}
             set_batch(batch, yc, yt)
-            # set_batch(batch, yc.numpy(), yt.numpy())
+            # print("GPY")
+            # print(xt[0].t())
+            # print(batch["xt"][0])
+            # print(yt[0].t())
+            # print(batch["yt"][0])
+            # print(len(batch["contexts"]))
+            # assert False
+            #
 
             # # Compute predictive logpdfs.
             # if self.pred_logpdf or self.pred_logpdf_diag:
