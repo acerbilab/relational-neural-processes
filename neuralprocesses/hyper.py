@@ -1,7 +1,6 @@
 import gc
 import os
 from functools import partial
-import click
 
 import experiment as exp
 import lab as B
@@ -14,12 +13,11 @@ import torch as th
 import torch.distributions as thd
 from experiment import plot
 from stheno.torch import GP, Matern32
-from varz import Vars, minimise_adam
-from wbml.plot import tweak
 
 # from tqdm.notebook import tqdm
 from tqdm import tqdm
-
+from varz import Vars, minimise_adam
+from wbml.plot import tweak
 
 # model_name = "rnp"
 # model_name = "gnp"
