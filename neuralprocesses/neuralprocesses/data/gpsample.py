@@ -6,7 +6,8 @@ import numpy as np
 
 
 from .data import SyntheticGenerator, new_batch
-from .sample_theno import sample_kernel
+
+# from .sample_theno import sample_kernel
 
 __all__ = ["GPGenerator"]
 
