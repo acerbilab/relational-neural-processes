@@ -113,7 +113,7 @@ def get_names(single=False, product=False):
         "matern32",
         "matern52",
         # "cosine",
-        "linear",
+        # "linear", # TODO: Some device issues with stheano
     ]
     if single:
         # Don't return the None kernel
@@ -126,17 +126,11 @@ def get_names(single=False, product=False):
         if "None" in pair:
             if pair[0] == pair[1]:
                 continue
-            # TODO: Some device issues with stheano
-            if "linear" in pair:
-                continue
             names.append(list(pair["None" != pair]))
         # Remove noise and EQ products as already available in the single
         elif "white" in pair:
             continue
         elif product and (sum("EQ" == pair) == 2):
-            continue
-        elif sum("linear" == pair) == 2:
-            # TODO: Some device issues with stheano
             continue
         else:
             names.append(list(pair))
