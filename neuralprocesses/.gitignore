@@ -27,3 +27,4 @@ venv-np
 _experiments
 
 ../.idea
+*.png
