@@ -23,6 +23,14 @@ from wbml.plot import tweak
 # model_name = "gnp"
 model_name = "agnp"
 
+if not os.path.exists("HYPER"):
+    print("Created Directory")
+    os.mkdir("HYPER")
+
+
+save_name = f"HYPER/hyper_{model_name}"
+grace_period = 10
+
 
 def distplot(data, label=None, set_theme=True):
     if set_theme:
@@ -79,7 +87,7 @@ args = {
     "dim_y": 1,
     "data": "eq",
     "batch_size": 16,
-    "epochs": 200,
+    "epochs": 100,
     "rate": 3e-4,
     "objective": "loglik",
     "num_samples": 20,
@@ -321,119 +329,120 @@ def lengthscale_opt(x_obs, y_obs):
     return f, f.kernel.stretches[0]
 
 
-# for model_name in ["rnp", "gnp", "agnp"]:
-# for model_name in ["gnp", "agnp"]:
-if True:
-    gen_train, gen_cv, gens_eval = exp.data[args.data]["setup"](
-        args,
-        config,
-        num_tasks_train=2**6 if args.train_fast else 2**14,
-        # num_tasks_train=2**10 if args.train_fast else 2**14,
-        num_tasks_cv=2**6 if args.train_fast else 2**12,
-        num_tasks_eval=2**6 if args.evaluate_fast else 2**12,
-        device=device,
+gen_train, gen_cv, gens_eval = exp.data[args.data]["setup"](
+    args,
+    config,
+    num_tasks_train=2**6 if args.train_fast else 2**14,
+    # num_tasks_train=2**10 if args.train_fast else 2**14,
+    num_tasks_cv=2**6 if args.train_fast else 2**12,
+    num_tasks_eval=2**6 if args.evaluate_fast else 2**12,
+    device=device,
+)
+
+objective = partial(
+    nps.loglik,
+    num_samples=args.num_samples,
+    normalise=not args.unnormalised,
+)
+objective_cv = partial(
+    nps.loglik,
+    num_samples=args.num_samples,
+    normalise=not args.unnormalised,
+)
+objectives_eval = [
+    (
+        "Loglik",
+        partial(
+            nps.loglik,
+            num_samples=args.evaluate_num_samples,
+            batch_size=args.evaluate_batch_size,
+            normalise=not args.unnormalised,
+        ),
+    )
+]
+model = get_model(model_name, device)
+
+# Setup training loop
+opt = torch.optim.Adam(model.parameters(), args.rate)
+
+# Set regularisation high for the first epochs
+original_epsilon = B.epsilon
+B.epsilon = config["epsilon_start"]
+log_loss = th.zeros(args.epochs)
+log_eval = th.zeros(args.epochs)
+min_val = -th.inf
+for i in tqdm(range(0, args.epochs)):
+    # Set regularisation to normal after the first epoch
+    if i > 0:
+        B.epsilon = original_epsilon
+
+    # Perform an epoch.
+    if config["fix_noise"] and i < config["fix_noise_epochs"]:
+        fix_noise = 1e-4
+    else:
+        fix_noise = None
+    state, vals, _ = train(
+        state,
+        model,
+        opt,
+        objective,
+        gen_train,
+        fix_noise=fix_noise,
+    )
+    log_loss[i] = vals.item()
+
+    # The epoch is done. Now evaluate.
+    state, val, _ = eval(state, model, objective_cv, gen_cv())
+    log_eval[i] = val.item()
+    if log_eval[i] > min_val:
+        min_val = log_eval[i]
+        th.save(model.state_dict(), f"{save_name}_{model_name}.pt")
+    if i > grace_period and all(val.item() < log_eval[(i - grace_period) : i]):
+        model.load_state_dict(th.load(f"{save_name}_{model_name}.pt"))
+        break
+th.save(model.state_dict(), f"BO/{save_name}_{model_name}.pt")
+torch.cuda.empty_cache()
+gc.collect()
+
+print("Trained successfully")
+plt.plot(log_loss)
+plt.plot(log_eval)
+plt.savefig(f"{save_name}_log_loss.png")
+plt.close()
+plot.visualise(model, gen_train, path=f"{save_name}_hyper.png", config=config)
+
+Xtrue, ytrue, kernel = true_function()
+Xtrue = Xtrue.to(device)
+ytrue = ytrue.to(device)
+
+n_test = 200
+x_range = th.linspace(-2, 2, n_test).to(device)
+batch = nps.batch_index(gen_train.generate_batch(), slice(0, 1, None))
+
+N_context = 40
+
+ids = np.random.choice(200, N_context, replace=False)
+contexts = [(Xtrue[ids][None, None], ytrue[ids][None, None])]
+
+with th.no_grad():
+    mean, var, samples, _ = nps.predict(
+        model,
+        # batch["contexts"],
+        contexts,
+        nps.AggregateInput(
+            *((x_range[None, None, :], i) for i in range(config["dim_y"]))
+        ),
     )
 
-    objective = partial(
-        nps.loglik,
-        num_samples=args.num_samples,
-        normalise=not args.unnormalised,
-    )
-    objective_cv = partial(
-        nps.loglik,
-        num_samples=args.num_samples,
-        normalise=not args.unnormalised,
-    )
-    objectives_eval = [
-        (
-            "Loglik",
-            partial(
-                nps.loglik,
-                num_samples=args.evaluate_num_samples,
-                batch_size=args.evaluate_batch_size,
-                normalise=not args.unnormalised,
-            ),
-        )
-    ]
-    model = get_model(model_name, device)
+samples = samples[0].squeeze().data
 
-    save_name = None
-    if save_name is None:
-        save_name = model_name
+for s in samples:
+    plt.plot(x_range, s, color="darkblue", alpha=0.1)
+plt.plot(x_range, mean[0].squeeze())
+A, B = contexts[0][0].flatten(), contexts[0][1].flatten()
+plt.scatter(A, B)
+plt.plot()
+plt.savefig(f"{save_name}_samples.png")
+plt.close()
 
-    # Setup training loop
-    opt = torch.optim.Adam(model.parameters(), args.rate)
-
-    # Set regularisation high for the first epochs
-    original_epsilon = B.epsilon
-    B.epsilon = config["epsilon_start"]
-    log_loss = th.zeros(args.epochs)
-    log_eval = th.zeros(args.epochs)
-    for i in tqdm(range(0, args.epochs)):
-        # Set regularisation to normal after the first epoch
-        if i > 0:
-            B.epsilon = original_epsilon
-
-        # Perform an epoch.
-        if config["fix_noise"] and i < config["fix_noise_epochs"]:
-            fix_noise = 1e-4
-        else:
-            fix_noise = None
-        state, vals, _ = train(
-            state,
-            model,
-            opt,
-            objective,
-            gen_train,
-            fix_noise=fix_noise,
-        )
-        log_loss[i] = vals.item()
-
-        # The epoch is done. Now evaluate.
-        state, val, _ = eval(state, model, objective_cv, gen_cv())
-        log_eval[i] = val.item()
-        torch.cuda.empty_cache()
-        gc.collect()
-
-    print("Trained successfully")
-    plt.plot(log_loss)
-    plt.plot(log_eval)
-    plt.savefig(f"{save_name}_log_loss.png")
-    plt.close()
-    plot.visualise(model, gen_train, path=f"{save_name}_hyper.png", config=config)
-
-    Xtrue, ytrue, kernel = true_function()
-    Xtrue = Xtrue.to(device)
-    ytrue = ytrue.to(device)
-
-    n_test = 200
-    x_range = th.linspace(-2, 2, n_test).to(device)
-    batch = nps.batch_index(gen_train.generate_batch(), slice(0, 1, None))
-
-    N_context = 10
-
-    ids = np.random.choice(200, N_context, replace=False)
-    contexts = [(Xtrue[ids][None, None], ytrue[ids][None, None])]
-
-    with th.no_grad():
-        mean, var, samples, _ = nps.predict(
-            model,
-            # batch["contexts"],
-            contexts,
-            nps.AggregateInput(
-                *((x_range[None, None, :], i) for i in range(config["dim_y"]))
-            ),
-        )
-
-    samples = samples[0].squeeze().data
-
-    for s in samples:
-        plt.plot(x_range, s, color="darkblue", alpha=0.1)
-    plt.plot(x_range, mean[0].squeeze())
-    A, B = contexts[0][0].flatten(), contexts[0][1].flatten()
-    plt.scatter(A, B)
-    plt.plot()
-    plt.savefig(f"{save_name}_samples.png")
-    plt.close()
-
-    lengths = estimate_lengths(x_range, samples)
+lengths = estimate_lengths(x_range, samples, filename=f"{save_name}_hist.png")
