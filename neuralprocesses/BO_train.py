@@ -31,7 +31,7 @@ grace_period = 50
 data_set_dims = {
     "hartmann3d": (3, (0, 1)),
     "rastrigin": (4, (-1, 1)),
-    "ackley": (4, (-32.768, 32.768)),
+    "ackley": (5, (-32.768, 32.768)),
     "hartmann6d": (6, (0, 1)),
 }
 
