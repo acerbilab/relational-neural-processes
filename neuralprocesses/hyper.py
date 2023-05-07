@@ -22,6 +22,7 @@ from wbml.plot import tweak
 # model_name = "rnp"
 # model_name = "gnp"
 model_name = "agnp"
+print(f"Training: {model_name}")
 
 if not os.path.exists("HYPER"):
     print("Created Directory")
@@ -242,7 +243,7 @@ def true_function():
     kernel = Matern32().stretch(2 / 3)
     X = th.linspace(-1, 1, 200).to(device)
     K = kernel(X).mat
-    y = thd.MultivariateNormal(th.zeros(200), K).sample()
+    y = thd.MultivariateNormal(th.zeros(200).to(device), K).sample()
     return X, y, kernel
 
 
@@ -400,7 +401,7 @@ for i in tqdm(range(0, args.epochs)):
     if i > grace_period and all(val.item() < log_eval[(i - grace_period) : i]):
         model.load_state_dict(th.load(f"{save_name}_{model_name}.pt"))
         break
-th.save(model.state_dict(), f"BO/{save_name}_{model_name}.pt")
+th.save(model.state_dict(), f"{save_name}_{model_name}.pt")
 torch.cuda.empty_cache()
 gc.collect()
 
