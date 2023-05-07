@@ -12,6 +12,13 @@ def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, 
     config["dim_x"] = args.dim_x
     config["dim_y"] = args.dim_y
 
+    if "x_range_context" in config.keys():
+        x_range_context = config["x_range_context"]
+        x_range_target = config["x_range_context"]
+    else:
+        x_range_context = (-1, 1)
+        x_range_target = (-1, 1)
+
     # Architecture choices specific for the GP experiments:
     # TODO: We should use a stride of 1 in the first layer, but for compatibility
     #    reasons with the models we already trained, we keep it like this.
@@ -45,6 +52,8 @@ def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, 
         dim_y=args.dim_y,
         pred_logpdf=False,
         pred_logpdf_diag=False,
+        x_range_context=x_range_context,
+        x_range_target=x_range_target,
         device=device,
         mean_diff=config["mean_diff"],
     )[name]
@@ -58,6 +67,8 @@ def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, 
         dim_y=args.dim_y,
         pred_logpdf=True,
         pred_logpdf_diag=True,
+        x_range_context=x_range_context,
+        x_range_target=x_range_target,
         device=device,
         mean_diff=config["mean_diff"],
     )[name]

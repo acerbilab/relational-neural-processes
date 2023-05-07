@@ -2,7 +2,7 @@ import lab as B
 from stheno import EQ, Matern52
 
 from .gp import GPGenerator
-from .gpsample import GPGeneratorMeta
+from .gpsample import GPGenerator
 from .mixgp import MixtureGPGenerator
 from .mixture import MixtureGenerator
 from .sawtooth import SawtoothGenerator
@@ -18,8 +18,8 @@ def construct_predefined_gens(
     num_tasks=2**14,
     dim_x=1,
     dim_y=1,
-    x_range_context=(-2, 2),
-    x_range_target=(-2, 2),
+    x_range_context=(-1, 1),
+    x_range_target=(-1, 1),
     mean_diff=0.0,
     pred_logpdf=True,
     pred_logpdf_diag=True,
@@ -84,7 +84,7 @@ def construct_predefined_gens(
     }
 
     # NOTE: Temporary solution for our hyperparameter learning
-    gens["meta"] = GPGeneratorMeta(
+    gens["meta"] = GPGenerator(
         dtype,
         seed=seed,
         noise=0.05,

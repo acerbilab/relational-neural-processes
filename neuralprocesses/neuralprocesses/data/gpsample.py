@@ -8,10 +8,10 @@ import numpy as np
 from .data import SyntheticGenerator, new_batch
 from .kernelgrammar_stheno import sample_kernel
 
-__all__ = ["GPGeneratorMeta"]
+__all__ = ["GPGenerator"]
 
 
-class GPGeneratorMeta(SyntheticGenerator):
+class GPGenerator(SyntheticGenerator):
     """GP generator.
 
     Further takes in arguments and keyword arguments from the constructor of
@@ -74,6 +74,7 @@ class GPGeneratorMeta(SyntheticGenerator):
                     warnings.simplefilter("ignore")
                     with stheno.Measure() as prior:
                         self.kernel = sample_kernel(True)
+                        # print(self.kernel)
                         # self.kernel = sample_kernel(single=False)
                         # Dutordoir2022 claims to sample lengthscales from
                         #   log N(log(0.5),sqrt(0.5)) but that makes no sense
