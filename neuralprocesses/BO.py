@@ -25,7 +25,7 @@ save_name = None
 if save_name is None:
     save_name = f"BO/{target_name}_{model_name}"
 
-grace_period = 10
+grace_period = 50
 
 
 data_set_dims = {
@@ -78,7 +78,7 @@ config = {
     # doesn't make sense to set it to a value higher of the last hidden layer of
     # the CNN architecture. We therefore set it to 64.
     "num_basis_functions": 64,
-    "dim_x": 1,
+    "dim_x": dim_x,
 }
 
 args = {
@@ -86,14 +86,14 @@ args = {
     "dim_y": 1,
     "data": "eq",
     "batch_size": 32,
-    "epochs": 5,
+    "epochs": 200,
     "rate": 3e-4,
     "objective": "loglik",
     "num_samples": 20,
     "unnormalised": False,
     "evaluate_num_samples": 512,
     "evaluate_batch_size": 8,
-    "train_fast": True,
+    "train_fast": False,
     "evaluate_fast": True,
 }
 
