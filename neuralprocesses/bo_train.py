@@ -86,7 +86,7 @@ args = {
     "dim_y": 1,
     "data": "eq",
     "batch_size": 32,
-    "epochs": 200,
+    "epochs": 500,
     "rate": 3e-4,
     "objective": "loglik",
     "num_samples": 20,
