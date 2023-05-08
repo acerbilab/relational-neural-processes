@@ -204,7 +204,7 @@ class RelationalMLP:
         encoded_feature_dim = x.shape[-1]
 
         x = x.view(batch_size, target_set_size, set_size, encoded_feature_dim)
-        encoded_target_x = x.mean(dim=2)
+        encoded_target_x = x.sum(dim=2)
 
         encoded_target_x = B.transpose(encoded_target_x)
         return encoded_target_x
