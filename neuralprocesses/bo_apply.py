@@ -22,9 +22,6 @@ from tqdm import tqdm
 
 # See https://www.sfu.ca/~ssurjano/optimization.html for target details
 
-target_name = "hartmann3d"
-n_steps = 100
-
 
 def get_target(target_name):
     data_set_dims = {
@@ -101,14 +98,20 @@ target, (dim, (min_x, max_x)), tar_min = get_target("hartmann3d")
 # plt.show()
 
 
+n_steps = 100
 device = "cpu"
 model_name = "rnp"
 # # model_name = "gnp"
 # model_name = "agnp"
 target_name = "hartmann3d"
+# target_name = "hartmann3d"
+# target_name = "rastrigin"
+# target_name = "ackley"
+target_name = "hartmann6d"
 save_name = None
 if save_name is None:
     save_name = f"BO/{target_name}_{model_name}"
+    # save_name = f"BO/{target_name}_{model_name}_product"
 
 
 data_set_dims = {
