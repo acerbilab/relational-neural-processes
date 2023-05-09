@@ -96,6 +96,8 @@ def main(**kw_args):
         choices=[
             "rcnp",
             "rgnp",
+            "srcnp",
+            "srgnp",
             "cnp",
             "gnp",
             "np",
@@ -143,7 +145,7 @@ def main(**kw_args):
     parser.add_argument("--evaluate", action="store_true")
     parser.add_argument("--evaluate-last", action="store_true")
     parser.add_argument("--evaluate-fast", action="store_true")
-    parser.add_argument("--evaluate-num-plots", type=int, default=5)
+    parser.add_argument("--evaluate-num-plots", type=int, default=1)
     parser.add_argument(
         "--evaluate-objective",
         choices=["loglik", "elbo"],
@@ -164,6 +166,8 @@ def main(**kw_args):
     )
     parser.add_argument("--patch", type=str)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--canonical-rule", type=str, choices=[None, "sum"], default=None)
+    parser.add_argument("--comparison-function", type=str, choices=["euclidean", "difference"], default="difference")
 
     if kw_args:
         # Load the arguments from the keyword arguments passed to the function.
@@ -220,6 +224,14 @@ def main(**kw_args):
     }:
         del args.arch
 
+    # no need to sort when dim_x = 1
+    if args.dim_x == 1:
+        args.canonical_rule = None
+
+    # translational-equivariance function for non-isotropic kernel
+    if args.data not in ["eq", "matern"]:  # TODO: add more isotropic functions here
+        args.comparison_function = "difference"
+
     # Remove the dimensionality specification if the experiment doesn't need it.
     if not exp.data[args.data]["requires_dim_x"]:
         del args.dim_x
@@ -257,6 +269,7 @@ def main(**kw_args):
         args.model,
         *((args.arch,) if hasattr(args, "arch") else ()),
         args.objective,
+        # "none" if args.canonical_rule is None else str(args.canonical_rule),
         str(args.seed),
         log=f"log{suffix}.txt",
         diff=f"diff{suffix}.txt",
@@ -276,6 +289,7 @@ def main(**kw_args):
     B.set_global_device(device)
     # Maintain an explicit random state through the execution.
     state = B.create_random_state(torch.float32, seed=args.seed)
+    B.set_random_seed(args.seed)
 
     # General config.
     config = {
@@ -290,8 +304,8 @@ def main(**kw_args):
         "fix_noise": None,
         "fix_noise_epochs": 3,
         "width": 256,
-        "relational_width": 64,
-        "dim_relational_embeddings": 128,
+        "relational_width": 256,
+        "dim_relational_embeddings": 256,
         "dim_embedding": 256,
         "enc_same": False,
         "num_heads": 8,
@@ -363,6 +377,7 @@ def main(**kw_args):
                 dim_yc=(1,) * config["dim_y"],
                 dim_yt=config["dim_y"],
                 dim_embedding=config["dim_embedding"],
+                dim_relational_embedding=config["dim_relational_embeddings"],
                 enc_same=config["enc_same"],
                 num_dec_layers=config["num_layers"],
                 width=config["width"],
@@ -370,6 +385,7 @@ def main(**kw_args):
                 num_relational_enc_layers=config['num_relational_layers'],
                 likelihood="het",
                 transform=config["transform"],
+                comparison_function=args.comparison_function
             )
         elif args.model == "rgnp":
             model = nps.construct_rnp(
@@ -377,6 +393,7 @@ def main(**kw_args):
                 dim_yc=(1,) * config["dim_y"],
                 dim_yt=config["dim_y"],
                 dim_embedding=config["dim_embedding"],
+                dim_relational_embedding=config["dim_relational_embeddings"],
                 enc_same=config["enc_same"],
                 num_dec_layers=config["num_layers"],
                 width=config["width"],
@@ -384,6 +401,37 @@ def main(**kw_args):
                 num_relational_enc_layers=config['num_relational_layers'],
                 likelihood="lowrank",
                 transform=config["transform"],
+                comparison_function=args.comparison_function
+            )
+        elif args.model == "srcnp":
+            model = nps.construct_srnp(
+                dim_x=config["dim_x"],
+                dim_yc=(1,) * config["dim_y"],
+                dim_yt=config["dim_y"],
+                dim_relational_embedding=config["dim_relational_embeddings"],
+                enc_same=config["enc_same"],
+                num_dec_layers=config["num_layers"],
+                width=config["width"],
+                relational_width=config['relational_width'],
+                num_relational_enc_layers=config['num_relational_layers'],
+                likelihood="het",
+                transform=config["transform"],
+                comparison_function=args.comparison_function
+            )
+        elif args.model == "srgnp":
+            model = nps.construct_srnp(
+                dim_x=config["dim_x"],
+                dim_yc=(1,) * config["dim_y"],
+                dim_yt=config["dim_y"],
+                dim_relational_embedding=config["dim_relational_embeddings"],
+                enc_same=config["enc_same"],
+                num_dec_layers=config["num_layers"],
+                width=config["width"],
+                relational_width=config['relational_width'],
+                num_relational_enc_layers=config['num_relational_layers'],
+                likelihood="lowrank",
+                transform=config["transform"],
+                comparison_function=args.comparison_function
             )
         elif args.model == "gnp":
             model = nps.construct_gnp(
@@ -562,11 +610,13 @@ def main(**kw_args):
             nps.loglik,
             num_samples=args.num_samples,
             normalise=not args.unnormalised,
+            canonical_rule=args.canonical_rule,
         )
         objective_cv = partial(
             nps.loglik,
             num_samples=args.num_samples,
             normalise=not args.unnormalised,
+            canonical_rule=args.canonical_rule,
         )
         objectives_eval = [
             (
@@ -576,6 +626,7 @@ def main(**kw_args):
                     num_samples=args.evaluate_num_samples,
                     batch_size=args.evaluate_batch_size,
                     normalise=not args.unnormalised,
+                    canonical_rule=args.canonical_rule,
                 ),
             )
         ]
@@ -778,6 +829,7 @@ def main(**kw_args):
                         gen,
                         path=wd.file(f"train-epoch-{i + 1:03d}-{j + 1}.pdf"),
                         config=config,
+                        canonical_rule=args.canonical_rule
                     )
 
 

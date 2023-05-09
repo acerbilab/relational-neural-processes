@@ -12,7 +12,7 @@ from ..dist import (
 )
 from ..parallel import Parallel
 
-__all__ = ["sample", "fix_noise", "compress_contexts", "tile_for_sampling"]
+__all__ = ["sample", "fix_noise", "compress_contexts", "tile_for_sampling", "canonical_ordering", "sort_batched_data"]
 
 
 @_dispatch
@@ -130,3 +130,24 @@ def tile_for_sampling(contexts: list, num_samples: int):
         (tile_for_sampling(xi, num_samples), tile_for_sampling(yi, num_samples))
         for xi, yi in contexts
     ]
+
+
+@_dispatch
+def canonical_ordering(method, xc: B.Numeric):
+    input_sum = method(xc, axis=2)
+    order = B.argsort(input_sum)
+    # _, order = torch.sort(input_sum)
+    return order
+
+
+@_dispatch
+def sort_batched_data(order, x: B.Numeric):
+    return x[:, order[0]]
+
+
+@_dispatch
+def sort_batched_data(order, x: AggregateInput):
+    xzs = []
+    for xi, i in x:
+        xzs.append((xi[:, order[0]], i))
+    return AggregateInput(*xzs)
