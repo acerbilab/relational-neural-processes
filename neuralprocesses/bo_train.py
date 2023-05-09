@@ -20,11 +20,15 @@ if not os.path.exists("BO"):
 model_name = "rnp"
 # # model_name = "gnp"
 # model_name = "agnp"
-target_name = "hartmann3d"
+# target_name = "hartmann3d"
+# target_name = "rastrigin"
+# target_name = "ackley"
+target_name = "hartmann6d"
 save_name = None
 if save_name is None:
     save_name = f"BO/{target_name}_{model_name}"
 
+print(save_name)
 grace_period = 50
 
 
@@ -290,9 +294,9 @@ for i in tqdm(range(0, args.epochs)):
     if i > grace_period and all(val.item() < log_eval[(i - grace_period) : i]):
         model.load_state_dict(th.load(f"{save_name}.pt"))
         break
+    th.cuda.empty_cache()
+    gc.collect()
 th.save(model.state_dict(), f"{save_name}.pt")
-th.cuda.empty_cache()
-gc.collect()
 
 print("Trained successfully")
 plt.plot(log_loss)
