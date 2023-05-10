@@ -4,4 +4,4 @@ from .convgnp import *
 from .fullconvgnp import *
 from .gnp import *
 from .rnp import *
-from .rnp import *
+from .srnp import *
