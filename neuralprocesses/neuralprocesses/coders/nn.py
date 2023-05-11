@@ -183,17 +183,20 @@ class RelationalMLP:
         batch_size, set_size, feature_dim = xc.shape
         _, target_set_size, _ = xt.shape
 
-        # Compute difference between target and context set
-        # (we also concatenate y_i to the context, and 0 for the target)
-        context_xp = B.concat(xc, yc, axis=-1).unsqueeze(1)
-        target_xp = B.concat(xt, B.cast(xt.dtype, B.zeros(batch_size, target_set_size, 1)), axis=-1).unsqueeze(2)
-
         if self.comparison_function == "euclidean":
-            diff_x = B.sqrt(B.sum((target_xp - context_xp)**2, axis=-1).reshape(batch_size, -1, 1))
+            context_xp = xc.unsqueeze(1)
+            target_xp = xt.unsqueeze(2)
+            # (batch_size, target_set_size, set_size, 1))
+            diff_x = B.sqrt(B.sum((target_xp - context_xp)**2, axis=-1).unsqueeze(-1))
+            diff_x = B.concat(diff_x, yc.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1).reshape(batch_size, -1, 2)
             batch_size, diff_size, filter_size = diff_x.shape
             x = diff_x.view(batch_size * diff_size, filter_size)
 
         else:
+            # Compute difference between target and context set
+            # (we also concatenate y_i to the context, and 0 for the target)
+            context_xp = B.concat(xc, yc, axis=-1).unsqueeze(1)
+            target_xp = B.concat(xt, B.cast(xt.dtype, B.zeros(batch_size, target_set_size, 1)), axis=-1).unsqueeze(2)
             diff_x = (target_xp - context_xp).reshape(batch_size, -1, feature_dim + out_dim)
             batch_size, diff_size, filter_size = diff_x.shape
             x = diff_x.view(batch_size * diff_size, filter_size)
