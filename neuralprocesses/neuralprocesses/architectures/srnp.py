@@ -98,7 +98,7 @@ def construct_srnp(
 
     def construct_relational_mlp(dim_yci):
         return nps.RelationalMLP(
-            in_dim=1 if comparison_function == "euclidean" else dim_x + dim_yci,
+            in_dim=2 if comparison_function == "euclidean" else dim_x + dim_yci,
             relational_out_dim=dim_relational_embedding,
             num_layers=num_relational_enc_layers,
             width=relational_width,
@@ -106,13 +106,10 @@ def construct_srnp(
             comparison_function=comparison_function
         )
 
-
     relational_encoder = construct_relational_mlp(dim_yc[0])
-
 
     encoder = nps.Chain(
         nps.RepeatForAggregateInputs(
-            # encode here
             nps.Chain(
                 relational_encoder,  # if enc_same=False we need multiple relational encoder
                 nps.RelationalEncode(nps.InputsCoder()),
@@ -122,7 +119,6 @@ def construct_srnp(
 
     )
     decoder = nps.Chain(
-        # nps.Concatenate(),
         nps.RepeatForAggregateInputs(
             nps.Chain(
                 nps.MLP(
