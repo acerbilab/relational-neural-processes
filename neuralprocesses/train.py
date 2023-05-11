@@ -96,8 +96,8 @@ def main(**kw_args):
         choices=[
             "rcnp",
             "rgnp",
-            "srcnp",
-            "srgnp",
+            "contextrcnp",
+            "contextrgnp",
             "cnp",
             "gnp",
             "np",
@@ -371,8 +371,8 @@ def main(**kw_args):
                 likelihood="het",
                 transform=config["transform"],
             )
-        elif args.model == "rcnp":
-            model = nps.construct_rnp(
+        elif args.model == "contextrcnp":
+            model = nps.construct_contextrnp(
                 dim_x=config["dim_x"],
                 dim_yc=(1,) * config["dim_y"],
                 dim_yt=config["dim_y"],
@@ -387,8 +387,8 @@ def main(**kw_args):
                 transform=config["transform"],
                 comparison_function=args.comparison_function
             )
-        elif args.model == "rgnp":
-            model = nps.construct_rnp(
+        elif args.model == "contextrgnp":
+            model = nps.construct_contextrnp(
                 dim_x=config["dim_x"],
                 dim_yc=(1,) * config["dim_y"],
                 dim_yt=config["dim_y"],
@@ -403,8 +403,8 @@ def main(**kw_args):
                 transform=config["transform"],
                 comparison_function=args.comparison_function
             )
-        elif args.model == "srcnp":
-            model = nps.construct_srnp(
+        elif args.model == "rcnp":
+            model = nps.construct_rnp(
                 dim_x=config["dim_x"],
                 dim_yc=(1,) * config["dim_y"],
                 dim_yt=config["dim_y"],
@@ -418,8 +418,8 @@ def main(**kw_args):
                 transform=config["transform"],
                 comparison_function=args.comparison_function
             )
-        elif args.model == "srgnp":
-            model = nps.construct_srnp(
+        elif args.model == "rgnp":
+            model = nps.construct_rnp(
                 dim_x=config["dim_x"],
                 dim_yc=(1,) * config["dim_y"],
                 dim_yt=config["dim_y"],
@@ -700,6 +700,7 @@ def main(**kw_args):
                     gen,
                     path=wd.file(f"evaluate-{i + 1:03d}.pdf"),
                     config=config,
+                    canonical_rule=None
                 )
 
             # For every objective and evaluation generator, do the evaluation.
@@ -798,6 +799,7 @@ def main(**kw_args):
                 # The epoch is done. Now evaluate.
                 state, val = eval(state, model, objective_cv, gen_cv())
 
+
                 # Save current model.
                 torch.save(
                     {
@@ -822,15 +824,15 @@ def main(**kw_args):
                     )
 
                 # Visualise a few predictions by the model.
-                gen = gen_cv()
-                for j in range(5):
-                    exp.visualise(
-                        model,
-                        gen,
-                        path=wd.file(f"train-epoch-{i + 1:03d}-{j + 1}.pdf"),
-                        config=config,
-                        canonical_rule=args.canonical_rule
-                    )
+                # gen = gen_cv()
+                # for j in range(5):
+                #     exp.visualise(
+                #         model,
+                #         gen,
+                #         path=wd.file(f"train-epoch-{i + 1:03d}-{j + 1}.pdf"),
+                #         config=config,
+                #         canonical_rule=args.canonical_rule
+                #     )
 
 
 if __name__ == "__main__":
