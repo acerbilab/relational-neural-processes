@@ -61,10 +61,10 @@ def construct_predefined_gens(
         "device": device,
     }
     kernels = {
-        "eq": EQ().stretch(factor * 0.25),
-        "matern": Matern52().stretch(factor * 0.25),
+        "eq": EQ().stretch(factor * 1),  # EQ().stretch(factor * 0.25),
+        "matern": Matern52().stretch(factor * 1),
         "weakly-periodic": (
-            EQ().stretch(factor * 0.5) * EQ().stretch(factor).periodic(factor * 0.25)
+            EQ().stretch(factor * 2) * EQ().stretch(factor * 4).periodic(factor * 1)  # EQ().stretch(factor * 0.5) * EQ().stretch(factor).periodic(factor * 0.25)
         ),
     }
     gens = {
@@ -90,7 +90,7 @@ def construct_predefined_gens(
         seed=seed,
         # The sawtooth is hard already as it is. Do not add noise.
         noise=0,
-        dist_freq=UniformContinuous(2 / factor, 4 / factor),
+        dist_freq=UniformContinuous(0.5 / factor, 1 / factor),  # 2, 4
         num_context=UniformDiscrete(0, max_context),
         num_target=UniformDiscrete(100 * dim_x, 100 * dim_x),
         **config,
@@ -117,7 +117,7 @@ def construct_predefined_gens(
             seed=seed + len(kernels.items()),
             # The sawtooth is hard already as it is. Do not add noise.
             noise=0,
-            dist_freq=UniformContinuous(2 / factor, 4 / factor),
+            dist_freq=UniformContinuous(0.5 / factor, 1 / factor),
             num_context=UniformDiscrete(0, max_context),
             num_target=UniformDiscrete(100 * dim_x, 100 * dim_x),
             **config,
