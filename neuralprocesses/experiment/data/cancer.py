@@ -8,11 +8,15 @@ __all__ = []
 def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device):
     config["default"]["rate"] = 1e-4
     config["default"]["epochs"] = 200
-    config["dim_x"] = 1
-    config["dim_y"] = 2
+    config["dim_x"] = 3
+    config["dim_y"] = 1
 
-    # Architecture choices specific for the predator-prey experiments:
-    config["transform"] = "softplus"
+    obs_type = "diff"  # todo: should read this from args
+
+    if obs_type in ["sane", "cancer"]:
+        config["transform"] = "softplus"
+    else:
+        config["transform"] = None
 
     # Configure the convolutional models:
     config["points_per_unit"] = 4
@@ -28,7 +32,7 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
         torch.float32,
         seed=10,
         dataset="small",
-        obs_type="sane",
+        obs_type=obs_type,
         num_tasks=num_tasks_train,
         mode="interpolation",
         device=device
@@ -37,7 +41,7 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
         torch.float32,
         seed=20,
         dataset="small",
-        obs_type="sane",
+        obs_type=obs_type,
         num_tasks=num_tasks_cv,
         mode="interpolation",
         device=device
@@ -53,7 +57,7 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
                     torch.float32,
                     seed=30,
                     dataset="small",
-                    obs_type="sane",
+                    obs_type=obs_type,
                     num_tasks=num_tasks_eval,
                     mode="interpolation",
                     device=device
@@ -65,7 +69,7 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
                     torch.float32,
                     seed=40,
                     dataset="small",
-                    obs_type="sane",
+                    obs_type=obs_type,
                     num_tasks=num_tasks_eval,
                     mode="interpolation",
                     device=device

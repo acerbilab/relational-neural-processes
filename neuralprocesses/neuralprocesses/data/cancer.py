@@ -55,13 +55,14 @@ class CancerGenerator(DataGenerator):
         dataset="small",
         obs_type="sane",
         num_tasks=10**3,
-        num_context=UniformDiscrete(150, 150),
-        num_target=UniformDiscrete(50, 50),
+        batch_size=16,
+        num_context=UniformDiscrete(50, 200),
+        num_target=UniformDiscrete(100, 200),
         forecast_start=UniformContinuous(4, 5),
         mode="completion",
         device="cpu",
     ):
-        super().__init__(dtype, seed, num_tasks, batch_size=1, device=device)
+        super().__init__(dtype, seed, num_tasks, batch_size=batch_size, device=device)
         
         self.num_context = convert(num_context, AbstractDistribution)
         self.num_target = convert(num_target, AbstractDistribution)
@@ -70,56 +71,83 @@ class CancerGenerator(DataGenerator):
         # Load the data.
         if dataset=="small":
             with open('experiment/data/dataset_cancer/datasetcancer_small.pkl', 'rb') as f:
-                self.trajectories = pickle.load(f)
+                trajectories_data = pickle.load(f)
         elif dataset=="large":
             with open('./experiment/data/datasetcancer/datasetcancer.pkl', 'rb') as f:
-                self.trajectories = pickle.load(f)
+                trajectories_data = pickle.load(f)
         else:
             raise ValueError(f'Bad datasel "(dataset)".')
+
+        # check data dimensinons
+        ntime, nspace = trajectories_data[0][0].shape
+        nx = int(B.sqrt(nspace))
+
+        # choose observation type and reshape and scale
+        max_value = 10
+        if obs_type == "sane":
+            self.trajectories = [tr[0].reshape(ntime, nx, nx)/max_value for tr in trajectories_data]
+        elif obs_type == "cancer":
+            self.trajectories = [tr[1].reshape(ntime, nx, nx)/max_value for tr in trajectories_data]
+        elif obs_type == "diff":
+            self.trajectories = [(tr[0]-tr[1]).reshape(ntime, nx, nx)/max_value for tr in trajectories_data]
+        else:
+            raise ValueError(f'Bad obs_type "(obs_type)".')
+
+        nsamples = len(self.trajectories)
+        self.trajectories_ind = UniformDiscrete(0, nsamples-1)
+        self.x_ind = UniformDiscrete(0, nx-1)
+        self.time_ind = UniformDiscrete(0, ntime-1)
+
+        # todo: current generate batch does not take these into account
         self.forecast_start=forecast_start
         self.mode=mode
-        self.obs_type=obs_type
         
-        
-        ntime=self.trajectories[0][0].shape[0]
-        nspace=self.trajectories[0][0].shape[1]
-        
-        N=random.choices(range(len(self.trajectories)),k=num_tasks)
-        #Attention to this, I don't know how to have a maximum of both quantities
-        xt1=np.zeros(shape=[num_tasks,1,200])
-        xt2=np.zeros(shape=[num_tasks,1,200])
-        yt=np.zeros(shape=[num_tasks,1,200])
-        
-        for i in range(num_tasks):
-            if obs_type == "sane":
-                traj_transf=self.trajectories[N[i]][0]
-            elif obs_type == "cancer":
-                traj_transf=self.trajectories[N[i]][1]
-            elif obs_type == "diff":
-                traj_transf=self.trajectories[N[i]][0]-self.trajectories[N[i]][0]
-            else:
-                raise ValueError(f'Bad obs_type "(obs_type)".')
-            for j in range(200):
-                tps=random.sample(range(ntime),1)[0]
-                pos=random.sample(range(nspace),1)[0]
-                xt1[i][0][j]=tps
-                xt2[i][0][j]=pos
-                yt[i][0][j]=traj_transf[tps][pos]
-        		
-        
-        self.xt=list([torch.tensor(xt1,dtype=dtype),torch.tensor(xt2,dtype=dtype)])
-        self.yt=list([torch.tensor(yt,dtype=dtype)])
 
     def generate_batch(self):
         with B.on_device(self.device):
-            self.state, batch = apply_task(
-                self.state,
-                self.dtype,
-                self.int64,
-                self.mode,
-                self.xt,
-                self.yt,
-                self.num_target,
-                self.forecast_start,
-            )
+
+            # batch setup
+            self.state, n_ctx = self.num_context.sample(self.state, self.int64)
+            self.state, n_trg = self.num_target.sample(self.state, self.int64)
+            n_ctx = int(n_ctx)
+            n_trg = int(n_trg)
+
+            self.state, inds = self.trajectories_ind.sample(self.state, self.int64, self.batch_size)
+
+            # random context
+            context_x = torch.zeros(self.batch_size, 3, n_ctx).to(self.device)
+            context_y = torch.zeros(self.batch_size, 1, n_ctx).to(self.device)
+            #print(type(context_x))
+            #print(type(context_y))
+            for b in range(self.batch_size):
+
+                self.state, x1 = self.x_ind.sample(self.state, self.int64, n_ctx)
+                self.state, x2 = self.x_ind.sample(self.state, self.int64, n_ctx)
+                self.state, time = self.time_ind.sample(self.state, self.int64, n_ctx)
+                x = B.concat(x1.reshape(1, -1), x2.reshape(1, -1), time.reshape(1, -1))
+                #print(type(x))
+                y = self.trajectories[inds[b]][time, x1, x2]
+                #print(type(y))
+                context_x[b] = x
+                context_y[b] = torch.from_numpy(y).to(self.device)
+
+            # random targets
+            target_x = torch.zeros(self.batch_size, 3, n_trg).to(self.device)
+            target_y = torch.zeros(self.batch_size, 1, n_trg).to(self.device)
+            for b in range(self.batch_size):
+
+                self.state, x1 = self.x_ind.sample(self.state, self.int64, n_trg)
+                self.state, x2 = self.x_ind.sample(self.state, self.int64, n_trg)
+                self.state, time = self.time_ind.sample(self.state, self.int64, n_trg)
+                x = B.concat(x1.reshape(1, -1), x2.reshape(1, -1), time.reshape(1, -1))
+                y = self.trajectories[inds[b]][time, x1, x2]
+                target_x[b] = x
+                target_y[b] = torch.from_numpy(y).to(self.device)
+
+            # make batch dict
+            batch = {}
+            batch['contexts'] = [(context_x, context_y)]
+            batch['xt'] = target_x
+            batch['yt'] = target_y
+
             return batch
