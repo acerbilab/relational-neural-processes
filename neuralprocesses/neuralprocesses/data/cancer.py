@@ -6,7 +6,7 @@ import random
 import pickle
 import torch
 
-from .data import DataGenerator, cancer_task, apply_task
+from .data import DataGenerator, apply_task
 from ..dist import AbstractDistribution
 from ..dist.uniform import UniformDiscrete, UniformContinuous
 
