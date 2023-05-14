@@ -97,8 +97,14 @@ def construct_rnp(
         )
 
     def construct_relational_mlp(dim_yci):
+        if comparison_function == "euclidean":
+            in_dim = 2
+        elif comparison_function == "euclidean_new":
+            in_dim = 2
+        else:
+            in_dim = dim_x + dim_yci
         return nps.RelationalMLP(
-            in_dim=2 if comparison_function == "euclidean" else dim_x + dim_yci,
+            in_dim= in_dim,
             relational_out_dim=dim_relational_embedding,
             num_layers=num_relational_enc_layers,
             width=relational_width,

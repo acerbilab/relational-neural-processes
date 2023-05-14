@@ -7,7 +7,7 @@ from functools import partial
 
 import experiment as exp
 import lab as B
-
+import gc
 import neuralprocesses.torch as nps
 import numpy as np
 import torch
@@ -40,6 +40,8 @@ def train(state, model, opt, objective, gen, *, fix_noise):
         opt.zero_grad(set_to_none=True)
         val.backward()
         opt.step()
+        torch.cuda.empty_cache()
+        gc.collect()
 
     vals = B.concat(*vals)
     out.kv("Loglik (T)", exp.with_err(vals, and_lower=True))
@@ -167,7 +169,7 @@ def main(**kw_args):
     parser.add_argument("--patch", type=str)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--canonical-rule", type=str, choices=[None, "sum"], default=None)
-    parser.add_argument("--comparison-function", type=str, choices=["euclidean", "difference"], default="difference")
+    parser.add_argument("--comparison-function", type=str, choices=["euclidean", "difference", "euclidean_new"], default="difference")
 
     if kw_args:
         # Load the arguments from the keyword arguments passed to the function.
