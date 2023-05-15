@@ -7,7 +7,7 @@ import stheno.torch as st
 
 
 def scale_kernel(kernel):
-    outputscale = th.exp(th.randn(1))
+    # outputscale = th.exp(th.randn(1))
     outputscale = np.exp(np.random.randn())
     return outputscale * kernel
 
@@ -102,13 +102,12 @@ def sample_basic_kernel(name=None, scale=False):
     return kernel
 
 
-def get_names(single=False, product=False):
-    "Not the nices formulation, but it works for now"
+def get_names(single=False):
+    "Not the nicest formulation, but it works for now"
     basic = [
         "None",
         "EQ",
         # "periodic",
-        # "white",  # TODO: Currently gives some dimensionality error in batch mode
         "matern12",
         "matern32",
         "matern52",
@@ -130,7 +129,7 @@ def get_names(single=False, product=False):
         # Remove noise and EQ products as already available in the single
         elif "white" in pair:
             continue
-        elif product and (sum("EQ" == pair) == 2):
+        elif sum("EQ" == pair) == 2:
             continue
         else:
             names.append(list(pair))
@@ -139,21 +138,34 @@ def get_names(single=False, product=False):
     return names
 
 
-def generate_kernel(names, single, product):
+def generate_kernel(names, single):
     if single:
-        kernel = scale_kernel(sample_basic_kernel(names))
+        return scale_kernel(sample_basic_kernel(names))
     else:
-        if product:
-            kernel = scale_kernel(
-                np.prod([sample_basic_kernel(name) for name in names])
-            )
-        else:
-            kernel = np.sum([scale_kernel(sample_basic_kernel(name)) for name in names])
+        kernel = scale_kernel(np.prod([sample_basic_kernel(name) for name in names]))
     return kernel
 
 
 def sample_kernel(single=False):
-    product = np.random.randn() > 0
-    names = get_names(single, product)
-    names = names[np.random.choice(len(names))]
-    return generate_kernel(names, single, product)
+    if single:
+        names = get_names(True)
+        names = names[np.random.choice(len(names))]
+        return generate_kernel(names, True)
+
+    sum = np.random.randn() > 0
+    if sum:
+        product = np.random.randn() > 0
+        names = get_names(product)
+        names = names[np.random.choice(len(names))]
+        kernel1 = generate_kernel(names, product)
+        product = np.random.randn() > 0
+        names = get_names(product)
+        names = names[np.random.choice(len(names))]
+        kernel2 = generate_kernel(names, product)
+
+        return kernel1 + kernel2
+    else:
+        product = np.random.randn() > 0
+        names = get_names(product)
+        names = names[np.random.choice(len(names))]
+        return generate_kernel(names, product)
