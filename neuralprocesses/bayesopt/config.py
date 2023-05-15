@@ -2,17 +2,17 @@ from functools import partial
 
 import experiment as exp
 import lab as B
-import neuralprocesses as nps
+import neuralprocesses.torch as nps
 import torch as th
 
 
 class PARAM:
     model_name = "rnp"  # one of rnp, gnp, agnp
     target_name = "hartmann3d"  # one of hartmann{3,6}d, rastrigin, ackley
-    grace_period = 50
+    grace_period = 100
     save_name = f"BO/{target_name}_{model_name}"
 
-    local_path = "../../../results"
+    local_path = "../../results"
     load_name = f"{local_path}/{save_name}"
     n_steps = 20
 
@@ -55,7 +55,7 @@ config = {
     # doesn't make sense to set it to a value higher of the last hidden layer of
     # the CNN architecture. We therefore set it to 64.
     "num_basis_functions": 64,
-    "dim_x": PARAM.bound,
+    "dim_x": PARAM.dim_x,
     "dim_y": 1,
     "transform": None,
 }
@@ -71,7 +71,7 @@ class mydict(dict):
 
 args = mydict(
     {
-        "dim_x": PARAM.bound,
+        "dim_x": PARAM.dim_x,
         "dim_y": 1,
         "data": "eq",
         "batch_size": 32,
@@ -84,6 +84,7 @@ args = mydict(
         "evaluate_batch_size": 8,
         "train_fast": False,
         "evaluate_fast": True,
+        "comparison_function": "difference",
         "seed": 1,
     }
 )

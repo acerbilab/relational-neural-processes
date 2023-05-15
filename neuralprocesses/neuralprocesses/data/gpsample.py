@@ -73,7 +73,7 @@ class GPGenerator(SyntheticGenerator):
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     with stheno.Measure() as prior:
-                        self.kernel = sample_kernel(True)
+                        self.kernel = sample_kernel(single=False)
                         # print(self.kernel)
                         # self.kernel = sample_kernel(single=False)
                         # Dutordoir2022 claims to sample lengthscales from

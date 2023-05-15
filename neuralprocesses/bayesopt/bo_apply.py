@@ -13,8 +13,8 @@ from botorch.optim import optimize_acqf
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from tqdm import tqdm
 
-from .config import PARAM, config
-from .utils import get_target, get_model
+from config import PARAM, config
+from utils import get_target, get_model
 
 
 def baseline_get_candidate(train_X, train_Y, bound, curr_min):
@@ -134,7 +134,7 @@ def visualize(tar_min, methods, name):
 @click.option("--vis", is_flag=True)
 @click.option("--n_rep", default=1)
 @click.option("--verbose", is_flag=True)
-def main(vis, n_rep):
+def main(vis, n_rep, verbose):
     target, (dim_x, (min_x, max_x)), tar_min = get_target("hartmann3d")
 
     B.epsilon = config["epsilon"]

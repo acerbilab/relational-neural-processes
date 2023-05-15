@@ -8,8 +8,8 @@ import torch as th
 from tqdm import tqdm
 
 # TODO: Restructure this properly instead of the current mess
-from .utils import get_model, train_epoch, eval
-from .config import get_generators, get_objectives, PARAM, args, config
+from utils import get_model, train_epoch, eval
+from config import get_generators, get_objectives, PARAM, args, config
 
 if not os.path.exists("../BO"):
     print("Create save dir")
@@ -72,26 +72,34 @@ def train(
 
 
 @click.command()
+@click.option("--run", default=1)
+@click.option("--target", default="hartmann3d")
+@click.option("--model", default="rcnp")
 @click.option("--save_postfix", default="")
-def main(save_postfix=""):
+def main(run, target, model, save_postfix):
     param = PARAM
+    param.save_name = param.save_name + save_postfix
+    param.target_name = target
+    param.model_name = model
     # TODO: Do I need this?
     os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
     USE_CUDA = th.cuda.is_available()
     device = th.device("cuda") if USE_CUDA else th.device("cpu")
 
+    args["seed"] = run
+
     state = B.create_random_state(th.float32, seed=0)
     B.epsilon = config["epsilon"]
     B.set_global_device(device)
 
-    model = get_model(param.model_name, device)
+    model = get_model(param.model_name, args, device)
 
     objective, objective_cv = get_objectives()
 
     gen_train, gen_cv, gens_eval = get_generators(args.data)
 
-    model(model, state, objective, objective_cv, gen_train, gen_cv, param)
+    train(model, state, objective, objective_cv, gen_train, gen_cv, param, verbose=True)
 
 
 if __name__ == "__main__":

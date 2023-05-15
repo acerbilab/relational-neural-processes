@@ -5,4 +5,4 @@ module load miniconda
 
 source activate rnp
 
-srun -c 4 --time=01:00:00 --gres=gpu:1 python bo_apply.py
+srun -c 4 --time=05:00:00 --mem 10G python bayesopt/bo_apply.py

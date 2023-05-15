@@ -34,8 +34,8 @@ def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, 
         # Since the PPU is reduced, we can also take off a layer of the UNet.
         config["unet_strides"] = config["unet_strides"][:-1]
         config["unet_channels"] = config["unet_channels"][:-1]
-    else:
-        raise RuntimeError(f"Invalid input dimensionality {args.dim_x}.")
+    # else:
+    #     raise RuntimeError(f"Invalid input dimensionality {args.dim_x}.")
 
     # Other settings specific to the GP experiments:
     config["plot"] = {
@@ -46,7 +46,9 @@ def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, 
 
     repnum = args.seed
     num_seeds = 2
-    seeds = np.random.SeedSequence(entropy=11463518354837724398231700962801993226).generate_state(num_seeds * repnum)[-num_seeds:]
+    seeds = np.random.SeedSequence(
+        entropy=11463518354837724398231700962801993226
+    ).generate_state(num_seeds * repnum)[-num_seeds:]
 
     gen_train = nps.construct_predefined_gens(
         torch.float32,
