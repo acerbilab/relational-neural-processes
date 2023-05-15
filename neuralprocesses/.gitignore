@@ -29,3 +29,5 @@ _experiments
 ../.idea
 *.png
 BO/*
+outcmaes*
+.ipynb_checkpoints/*
