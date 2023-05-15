@@ -296,13 +296,18 @@ def main(**kw_args):
 
     B.set_global_device(device)
     # Maintain an explicit random state through the execution.
-    num_seeds=3
-    repnum = args.seed
-    assert(repnum > 0)
-    this_seeds = np.random.SeedSequence(entropy=11463518354837724398231700962801993226).generate_state(num_seeds * repnum)[-num_seeds:]
-    #print(this_seeds)
-    state = B.create_random_state(torch.float32, seed=int(this_seeds[0]))
-    B.set_random_seed(int(this_seeds[0]))
+
+    if args.data == "cancer":
+        num_seeds=3
+        repnum = args.seed
+        assert(repnum > 0)
+        this_seeds = np.random.SeedSequence(entropy=11463518354837724398231700962801993226).generate_state(num_seeds * repnum)[-num_seeds:]
+        #print(this_seeds)
+        state = B.create_random_state(torch.float32, seed=int(this_seeds[0]))
+        B.set_random_seed(int(this_seeds[0]))
+    else:
+        state = B.create_random_state(torch.float32, seed=args.seed)
+        B.set_random_seed(args.seed)
 
     # General config.
     config = {
