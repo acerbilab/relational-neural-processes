@@ -166,6 +166,11 @@ def main(**kw_args):
         type=str,
         choices=["random", "interpolation", "forecasting", "reconstruction"],
     )
+    parser.add_argument(
+        "--cancer-obs-type",
+        type=str,
+        choices=["sane", "cancer", "diff"]
+    )
     parser.add_argument("--patch", type=str)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--canonical-rule", type=str, choices=[None, "sum"], default=None)
@@ -259,6 +264,7 @@ def main(**kw_args):
 
     data_dir = args.data if args.mean_diff is None else f"{args.data}-{args.mean_diff}"
     data_dir = data_dir if args.eeg_mode is None else f"{args.data}-{args.eeg_mode}"
+    data_dir = data_dir if args.cancer_obs_type is None else f"{args.data}-{args.cancer_obs_type}"
 
     # Setup script.
     if not observe:
@@ -290,8 +296,18 @@ def main(**kw_args):
 
     B.set_global_device(device)
     # Maintain an explicit random state through the execution.
-    state = B.create_random_state(torch.float32, seed=args.seed)
-    B.set_random_seed(args.seed)
+
+    if args.data == "cancer":
+        num_seeds=3
+        repnum = args.seed
+        assert(repnum > 0)
+        this_seeds = np.random.SeedSequence(entropy=11463518354837724398231700962801993226).generate_state(num_seeds * repnum)[-num_seeds:]
+        #print(this_seeds)
+        state = B.create_random_state(torch.float32, seed=int(this_seeds[0]))
+        B.set_random_seed(int(this_seeds[0]))
+    else:
+        state = B.create_random_state(torch.float32, seed=args.seed)
+        B.set_random_seed(args.seed)
 
     # General config.
     config = {
@@ -324,6 +340,7 @@ def main(**kw_args):
         # the CNN architecture. We therefore set it to 64.
         "num_basis_functions": 64,
         "eeg_mode": args.eeg_mode,
+        "cancer_obs_type": args.cancer_obs_type,
     }
 
     # Setup data generators for training and for evaluation.
@@ -335,6 +352,7 @@ def main(**kw_args):
             num_tasks_cv=2**6 if args.train_fast else 2**8,
             num_tasks_eval=2**6 if args.evaluate_fast else 2**8,
             device=device,
+            this_seeds=[int(this_seeds[1]), int(this_seeds[2])]
         )
     else:
         gen_train, gen_cv, gens_eval = exp.data[args.data]["setup"](
