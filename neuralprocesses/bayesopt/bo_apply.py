@@ -1,7 +1,7 @@
-import os
 from functools import partial
 
 import botorch as bth
+import cma
 import experiment as exp
 import lab as B
 import matplotlib.pyplot as plt
@@ -11,14 +11,11 @@ import torch as th
 import torch.distributions as thd
 from botorch.acquisition import ExpectedImprovement
 from botorch.fit import fit_gpytorch_mll
-
-# from scipy.stats.qmc import Halton
 from botorch.models import SingleTaskGP
 from botorch.optim import optimize_acqf
 from gpytorch.mlls import ExactMarginalLogLikelihood
-
-# from tqdm.notebook import tqdm
 from tqdm import tqdm
+
 
 # See https://www.sfu.ca/~ssurjano/optimization.html for target details
 
@@ -57,6 +54,7 @@ def baseline_get_candidate(train_X, train_Y, bound, curr_min):
     acq = ExpectedImprovement(gp, best_f=curr_min)
 
     bounds = th.stack([bound[0] * th.zeros(dim_x), bound[1] * th.ones(dim_x)])
+    # TODO: get the same for our Setup
     candidate, acq_value = optimize_acqf(
         acq,
         bounds=bounds,
@@ -98,20 +96,22 @@ target, (dim, (min_x, max_x)), tar_min = get_target("hartmann3d")
 # plt.show()
 
 
-n_steps = 100
+n_steps = 20
 device = "cpu"
 model_name = "rnp"
 # # model_name = "gnp"
 # model_name = "agnp"
 target_name = "hartmann3d"
-# target_name = "hartmann3d"
 # target_name = "rastrigin"
 # target_name = "ackley"
-target_name = "hartmann6d"
+# target_name = "hartmann6d"
 save_name = None
 if save_name is None:
-    save_name = f"BO/{target_name}_{model_name}"
-    # save_name = f"BO/{target_name}_{model_name}_product"
+    local_path = "../../../results/"
+    local_path = ""
+    save_name = f"{local_path}BO/{target_name}_{model_name}"
+    # save_name = f"{local_path}BO/{target_name}_{model_name}_product"
+# save_name = "BO/hartmann6d_rnp"
 
 
 data_set_dims = {
@@ -271,16 +271,16 @@ def rnp_optim(model, init_x, init_y, n_steps, bound, target):
     train_Y = th.clone(init_y)  # .type(th.double)
     optima[0] = target(train_Y).max()
     for step in tqdm(range(1, n_steps)):
-        candidate = rnp_get_candidate(
-            model, train_X.T[None], train_Y.T[None], bound, optima[step]
-        )
+        tqdm.write(f"## {step}/{n_steps}")
+        candidate = rnp_get_candidate(model, train_X, train_Y)
+
         train_X = th.cat((train_X, candidate))
         train_Y = th.cat((train_Y, target(candidate)[None]))
         if train_Y[-1, 0] > optima[step - 1]:
             optima[step] = train_Y[-1, 0]
         else:
             optima[step] = optima[step - 1]
-    return optima
+    return optima  # , train_X, train_Y
 
 
 def compute_EI(mu, var, f_best):
@@ -290,19 +290,42 @@ def compute_EI(mu, var, f_best):
     return var.sqrt() * (Z * p.cdf(Z) + p.log_prob(Z).exp())
 
 
-def rnp_get_candidate(model, train_X, train_Y, bound, f_best):
-    x_range = (th.rand((50, dim)).T)[None]
-    with th.no_grad():
-        pred = model(train_X, train_Y, x_range)
-        EI = compute_EI(pred.mean.squeeze(), pred.var.squeeze(), f_best)
-        # print(EI)
-        candidate = x_range[:, :, th.argmax(EI)]
-    return candidate
+@th.no_grad()
+def EI_objective(x, model, train_X, train_Y, f_best):
+    x = th.from_numpy(x).float()
+    if not all(th.logical_and(0 < x, x < 1)):
+        return 0
+    pred = model(train_X.T[None], train_Y.T[None], x[None, :, None])
+    return compute_EI(pred.mean, pred.var, f_best).item()
+
+
+def rnp_get_candidate(model, train_X, train_Y):
+    opt_func = lambda x: -EI_objective(x, model, train_X, train_Y, train_Y.max())
+
+    # Get candidates and yes, this does not need to be a loop
+    Xcan = th.rand((100, 3)).numpy()
+    res = [opt_func(x) for x in Xcan]
+
+    Xstart = Xcan[np.argmin(res)]
+
+    # xopt, es = cma.fmin2(opt_func, train_X[train_Y.argmax()], 0.5)
+    xopt, es = cma.fmin2(opt_func, Xstart, 0.5)
+    return th.from_numpy(xopt[None]).float()
+
+
+# def rnp_get_candidate(model, train_X, train_Y, bound, f_best):
+#     x_range = (th.rand((50, dim)).T)[None]
+#     with th.no_grad():
+#         pred = model(train_X, train_Y, x_range)
+#         EI = compute_EI(pred.mean.squeeze(), pred.var.squeeze(), f_best)
+#         # print(EI)
+#         candidate = x_range[:, :, th.argmax(EI)]
+#     return candidate
 
 
 tot_baseline = []
 tot_rnp = []
-for i in range(10):
+for i in range(1):
     # Assuming mon_x <= 0 < max_x
     train_X = th.rand((5, dim)) * (np.abs(min_x) + max_x) + min_x
     optim_gp = baseline_train(
@@ -312,6 +335,8 @@ for i in range(10):
     optim_rnp = rnp_optim(
         model, train_X, target(train_X)[:, None], n_steps, (min_x, max_x), target
     )
+    print(optim_gp)
+    print(optim_rnp)
     tot_rnp.append(optim_rnp)
 
 import seaborn as sns
@@ -327,5 +352,7 @@ plt.plot(-th.stack(tot_rnp).mean(0), color=sns.color_palette()[1], label="rnp")
 
 plt.legend()
 sns.despine()
-plt.title("Hartmann-3d")
-plt.show()
+plt.title(f"{target_name}-prod")
+plt.savefig("tmp.png")
+plt.close()
+# plt.show()
