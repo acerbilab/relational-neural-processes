@@ -12,6 +12,10 @@ class PARAM:
     grace_period = 50
     save_name = f"BO/{target_name}_{model_name}"
 
+    local_path = "../../../results"
+    load_name = f"{local_path}/{save_name}"
+    n_steps = 20
+
     dim_x, bound = {
         "hartmann3d": (3, (0, 1)),
         "rastrigin": (4, (-1, 1)),
@@ -52,6 +56,8 @@ config = {
     # the CNN architecture. We therefore set it to 64.
     "num_basis_functions": 64,
     "dim_x": PARAM.bound,
+    "dim_y": 1,
+    "transform": None,
 }
 
 
@@ -78,6 +84,7 @@ args = mydict(
         "evaluate_batch_size": 8,
         "train_fast": False,
         "evaluate_fast": True,
+        "seed": 1,
     }
 )
 

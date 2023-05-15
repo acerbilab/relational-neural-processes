@@ -8,8 +8,8 @@ import torch as th
 from tqdm import tqdm
 
 # TODO: Restructure this properly instead of the current mess
-from utils import get_model, train_epoch, eval
-from config import get_generators, get_objectives, PARAM, args, config
+from .utils import get_model, train_epoch, eval
+from .config import get_generators, get_objectives, PARAM, args, config
 
 if not os.path.exists("../BO"):
     print("Create save dir")
@@ -72,8 +72,8 @@ def train(
 
 
 @click.command()
-# @click.option()
-def main():
+@click.option("--save_postfix", default="")
+def main(save_postfix=""):
     param = PARAM
     # TODO: Do I need this?
     os.environ["KMP_DUPLICATE_LIB_OK"] = "True"

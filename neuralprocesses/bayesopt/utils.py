@@ -1,7 +1,7 @@
 import lab as B
 import torch
+import botorch as bth
 
-# from .config import *
 from config import config
 import neuralprocesses as nps
 
@@ -26,7 +26,6 @@ def train_epoch(state, model, opt, objective, gen, *, fix_noise):
         opt.step()
 
     vals = B.concat(*vals)
-    # out.kv("Loglik (T)", exp.with_err(vals, and_lower=True))
     return state, vals.mean(), B.mean(vals) - 1.96 * B.std(vals) / B.sqrt(len(vals))
 
 
@@ -111,3 +110,30 @@ def get_model(model_name, device):
 
     model = model.to(device)
     return model
+
+
+# See https://www.sfu.ca/~ssurjano/optimization.html for target details
+def get_target(target_name):
+    data_set_dims = {
+        "hartmann3d": (3, (0, 1)),
+        "rastrigin": (4, (-1, 1)),
+        "ackley": (5, (-32.768, 32.768)),
+        "hartmann6d": (6, (0, 1)),
+    }
+
+    if target_name == "hartmann3d":
+        target = bth.test_functions.Hartmann(3)
+        tar_min = -3.86278
+    elif target_name == "rastrigin":
+        target = bth.test_functions.Rastrigin(4)
+        tar_min = 0.0
+    elif target_name == "ackley":
+        target = bth.test_functions.Ackley(5)
+        tar_min = 0.0
+    elif target_name == "hartmann6d":
+        target = bth.test_functions.Hartmann(3)
+        tar_min = -3.32237
+    else:
+        raise NotImplementedError()
+
+    return target, data_set_dims[target_name], tar_min

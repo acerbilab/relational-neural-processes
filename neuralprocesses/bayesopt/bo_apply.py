@@ -1,12 +1,9 @@
-from functools import partial
-
-import botorch as bth
+import click
 import cma
-import experiment as exp
 import lab as B
 import matplotlib.pyplot as plt
-import neuralprocesses.torch as nps
 import numpy as np
+import seaborn as sns
 import torch as th
 import torch.distributions as thd
 from botorch.acquisition import ExpectedImprovement
@@ -16,34 +13,8 @@ from botorch.optim import optimize_acqf
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from tqdm import tqdm
 
-
-# See https://www.sfu.ca/~ssurjano/optimization.html for target details
-
-
-def get_target(target_name):
-    data_set_dims = {
-        "hartmann3d": (3, (0, 1)),
-        "rastrigin": (4, (-1, 1)),
-        "ackley": (5, (-32.768, 32.768)),
-        "hartmann6d": (6, (0, 1)),
-    }
-
-    if target_name == "hartmann3d":
-        target = bth.test_functions.Hartmann(3)
-        tar_min = -3.86278
-    elif target_name == "rastrigin":
-        target = bth.test_functions.Rastrigin(4)
-        tar_min = 0.0
-    elif target_name == "ackley":
-        target = bth.test_functions.Ackley(5)
-        tar_min = 0.0
-    elif target_name == "hartmann6d":
-        target = bth.test_functions.Hartmann(3)
-        tar_min = -3.32237
-    else:
-        raise NotImplementedError()
-
-    return lambda x: -target(x), data_set_dims[target_name], tar_min
+from .config import PARAM, config
+from .utils import get_target, get_model
 
 
 def baseline_get_candidate(train_X, train_Y, bound, curr_min):
@@ -82,189 +53,7 @@ def baseline_train(init_x, init_y, n_steps, bound, target):
     return optima
 
 
-target, (dim, (min_x, max_x)), tar_min = get_target("hartmann3d")
-
-
-# # Assuming mon_x <= 0 < max_x
-# train_X = th.rand((1, dim)) * (np.abs(min_x) + max_x) + min_x
-# optim_gp = baseline_train(
-#     train_X, target(train_X)[:, None], n_steps, (min_x, max_x), target
-# )
-#
-# plt.axhline(tar_min, color="black", ls="dashed", alpha=0.8)
-# plt.plot(-optim_gp)
-# plt.show()
-
-
-n_steps = 20
-device = "cpu"
-model_name = "rnp"
-# # model_name = "gnp"
-# model_name = "agnp"
-target_name = "hartmann3d"
-# target_name = "rastrigin"
-# target_name = "ackley"
-# target_name = "hartmann6d"
-save_name = None
-if save_name is None:
-    local_path = "../../../results/"
-    local_path = ""
-    save_name = f"{local_path}BO/{target_name}_{model_name}"
-    # save_name = f"{local_path}BO/{target_name}_{model_name}_product"
-# save_name = "BO/hartmann6d_rnp"
-
-
-data_set_dims = {
-    "hartmann3d": (3, (0, 1)),
-    "rastrigin": (4, (-1, 1)),
-    "ackley": (5, (-32.768, 32.768)),
-    "hartmann6d": (6, (0, 1)),
-}
-
-dim_x, context = data_set_dims[target_name]
-
-
-# TODO: For now these are taken from Bruinsma's experiments essentially without adaptation
-config = {
-    "default": {
-        "epochs": None,
-        "rate": None,
-        "also_ar": False,
-    },
-    "epsilon": 1e-8,
-    "epsilon_start": 1e-2,
-    "cholesky_retry_factor": 1e6,
-    "fix_noise": None,
-    "fix_noise_epochs": 3,
-    "width": 256,
-    "dim_embedding": 256,
-    "relational_width": 64,
-    "dim_relational_embeddings": 128,
-    "enc_same": False,
-    "num_heads": 8,
-    "num_layers": 6,
-    "num_relational_layers": 3,
-    "unet_channels": (64,) * 6,
-    "unet_strides": (1,) + (2,) * 5,
-    "conv_channels": 64,
-    "encoder_scales": None,
-    "x_range_context": context,
-    "fullconvgnp_kernel_factor": 2,
-    "mean_diff": 0,
-    # Performance of the ConvGNP is sensitive to this parameter. Moreover, it
-    # doesn't make sense to set it to a value higher of the last hidden layer of
-    # the CNN architecture. We therefore set it to 64.
-    "num_basis_functions": 64,
-    "dim_x": dim_x,
-    "dim_y": 1,
-}
-
-args = {
-    "dim_x": dim_x,
-    "dim_y": 1,
-    "data": "eq",
-    "batch_size": 32,
-    "epochs": 200,
-    "rate": 3e-4,
-    "objective": "loglik",
-    "num_samples": 20,
-    "unnormalised": False,
-    "evaluate_num_samples": 512,
-    "evaluate_batch_size": 8,
-    "train_fast": False,
-    "evaluate_fast": True,
-}
-
-B.epsilon = config["epsilon"]
-
-
-class mydict(dict):
-    def __getattribute__(self, key):
-        if key in self:
-            return self[key]
-        else:
-            return super().__getattribute__(key)
-
-
-args = mydict(args)
-
-gen_train, gen_cv, gens_eval = exp.data[args.data]["setup"](
-    args,
-    config,
-    num_tasks_train=2**6 if args.train_fast else 2**14,
-    # num_tasks_train=2**10 if args.train_fast else 2**14,
-    num_tasks_cv=2**6 if args.train_fast else 2**12,
-    num_tasks_eval=2**6 if args.evaluate_fast else 2**12,
-    device=device,
-)
-
-objective = partial(
-    nps.loglik,
-    num_samples=args.num_samples,
-    normalise=not args.unnormalised,
-)
-objective_cv = partial(
-    nps.loglik,
-    num_samples=args.num_samples,
-    normalise=not args.unnormalised,
-)
-
-
-def get_model(model_name, device):
-    if model_name == "rnp":
-        model = nps.construct_rnp(
-            dim_x=config["dim_x"],
-            dim_yc=(1,) * config["dim_y"],
-            dim_yt=config["dim_y"],
-            dim_embedding=config["dim_embedding"],
-            enc_same=config["enc_same"],
-            num_dec_layers=config["num_layers"],
-            width=config["width"],
-            relational_width=config["relational_width"],
-            num_relational_enc_layers=config["num_relational_layers"],
-            likelihood="lowrank",
-            transform=config["transform"],
-        )
-    elif model_name == "gnp":
-        model = nps.construct_gnp(
-            dim_x=config["dim_x"],
-            dim_yc=(1,) * config["dim_y"],
-            dim_yt=config["dim_y"],
-            dim_embedding=config["dim_embedding"],
-            enc_same=config["enc_same"],
-            num_dec_layers=config["num_layers"],
-            width=config["width"],
-            likelihood="lowrank",
-            num_basis_functions=config["num_basis_functions"],
-            transform=config["transform"],
-        )
-    elif model_name == "agnp":
-        model = nps.construct_agnp(
-            dim_x=config["dim_x"],
-            dim_yc=(1,) * config["dim_y"],
-            dim_yt=config["dim_y"],
-            dim_embedding=config["dim_embedding"],
-            enc_same=config["enc_same"],
-            num_heads=config["num_heads"],
-            num_dec_layers=config["num_layers"],
-            width=config["width"],
-            likelihood="lowrank",
-            num_basis_functions=config["num_basis_functions"],
-            transform=config["transform"],
-        )
-    else:
-        raise NotImplementedError(f"{model_name} is not implemented")
-
-    model = model.to(device)
-    return model
-
-
-model = get_model(model_name, "cpu")
-
-model.load_state_dict(th.load(f"{save_name}.pt", map_location=th.device("cpu")))
-
-
-def rnp_optim(model, init_x, init_y, n_steps, bound, target):
+def rnp_optim(model, init_x, init_y, n_steps, target):
     optima = th.zeros(n_steps)
 
     train_X = th.clone(init_x)  # .type(th.double)
@@ -280,7 +69,7 @@ def rnp_optim(model, init_x, init_y, n_steps, bound, target):
             optima[step] = train_Y[-1, 0]
         else:
             optima[step] = optima[step - 1]
-    return optima  # , train_X, train_Y
+    return optima
 
 
 def compute_EI(mu, var, f_best):
@@ -303,6 +92,7 @@ def rnp_get_candidate(model, train_X, train_Y):
     opt_func = lambda x: -EI_objective(x, model, train_X, train_Y, train_Y.max())
 
     # Get candidates and yes, this does not need to be a loop
+    # TODO: change that
     Xcan = th.rand((100, 3)).numpy()
     res = [opt_func(x) for x in Xcan]
 
@@ -313,46 +103,73 @@ def rnp_get_candidate(model, train_X, train_Y):
     return th.from_numpy(xopt[None]).float()
 
 
-# def rnp_get_candidate(model, train_X, train_Y, bound, f_best):
-#     x_range = (th.rand((50, dim)).T)[None]
-#     with th.no_grad():
-#         pred = model(train_X, train_Y, x_range)
-#         EI = compute_EI(pred.mean.squeeze(), pred.var.squeeze(), f_best)
-#         # print(EI)
-#         candidate = x_range[:, :, th.argmax(EI)]
-#     return candidate
+def rnp_get_candidate_rand(model, train_X, train_Y):
+    x_range = (th.rand((50, train_X.shape[1])).T)[None]
+    with th.no_grad():
+        pred = model(train_X, train_Y, x_range)
+        EI = compute_EI(pred.mean.squeeze(), pred.var.squeeze(), train_Y.max())
+        candidate = x_range[:, :, th.argmax(EI)]
+    return candidate
 
 
-tot_baseline = []
-tot_rnp = []
-for i in range(1):
-    # Assuming mon_x <= 0 < max_x
-    train_X = th.rand((5, dim)) * (np.abs(min_x) + max_x) + min_x
-    optim_gp = baseline_train(
-        train_X, target(train_X)[:, None], n_steps, (min_x, max_x), target
+def visualize(tar_min, methods, name):
+    plt.axhline(tar_min, color="black", ls="dashed", alpha=0.8)
+    for i, method in enumerate(methods):
+        for mm in method[0]:
+            plt.plot(-mm, color=sns.color_palette()[i], alpha=0.3)
+        plt.plot(
+            -th.stack(method[0]).mean(0),
+            color=sns.color_palette()[i],
+            label=method[1],
+        )
+
+        plt.legend()
+        sns.despine()
+        plt.title(f"{name}")
+        plt.savefig(f"{name}.png")
+        plt.close()
+
+
+@click.command()
+@click.option("--vis", is_flag=True)
+@click.option("--n_rep", default=1)
+@click.option("--verbose", is_flag=True)
+def main(vis, n_rep):
+    target, (dim_x, (min_x, max_x)), tar_min = get_target("hartmann3d")
+
+    B.epsilon = config["epsilon"]
+
+    model = get_model(PARAM.model_name, "cpu")
+
+    model.load_state_dict(
+        th.load(f"{PARAM.load_name}.pt", map_location=th.device("cpu"))
     )
-    tot_baseline.append(optim_gp)
-    optim_rnp = rnp_optim(
-        model, train_X, target(train_X)[:, None], n_steps, (min_x, max_x), target
-    )
-    print(optim_gp)
-    print(optim_rnp)
-    tot_rnp.append(optim_rnp)
 
-import seaborn as sns
+    tot_gp = []
+    tot_rnp = []
+    for i in range(n_rep):
+        # Assuming mon_x <= 0 < max_x
+        train_X = th.rand((5, dim_x)) * (np.abs(min_x) + max_x) + min_x
+        optim_gp = baseline_train(
+            train_X, target(train_X)[:, None], PARAM.n_steps, (min_x, max_x), target
+        )
+        tot_gp.append(optim_gp)
+        optim_rnp = rnp_optim(
+            model,
+            train_X,
+            target(train_X)[:, None],
+            PARAM.n_steps,
+            (min_x, max_x),
+            target,
+        )
+        tot_rnp.append(optim_rnp)
+        if verbose:
+            print(optim_gp)
+            print(optim_rnp)
 
-plt.axhline(tar_min, color="black", ls="dashed", alpha=0.8)
-for gp in tot_baseline:
-    plt.plot(-gp, color=sns.color_palette()[0], alpha=0.3)
-plt.plot(-th.stack(tot_baseline).mean(0), color=sns.color_palette()[0], label="gp")
-# plt.plot(-optim_gp, label="gp")
-for rnp in tot_rnp:
-    plt.plot(-rnp, color=sns.color_palette()[1], alpha=0.3)
-plt.plot(-th.stack(tot_rnp).mean(0), color=sns.color_palette()[1], label="rnp")
+    if vis:
+        visualize(tar_min, [(tot_gp, "GP"), (tot_rnp, "RNP")])
 
-plt.legend()
-sns.despine()
-plt.title(f"{target_name}-prod")
-plt.savefig("tmp.png")
-plt.close()
-# plt.show()
+
+if __name__ == "__main__":
+    main()
