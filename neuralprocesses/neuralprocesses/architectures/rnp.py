@@ -32,7 +32,7 @@ def construct_rnp(
     nps=nps,
     comparison_function="euclidean",
 ):
-    """A Relational Neural Process.
+    """A Slim Relational Neural Process.
 
     Args:
         num_relational_enc_layers:
@@ -97,66 +97,37 @@ def construct_rnp(
     )
 
     def construct_relational_mlp(dim_yci):
+        if comparison_function == "euclidean":
+            in_dim = 2
+        elif comparison_function == "euclidean_new":
+            in_dim = 2
+        else:
+            in_dim = dim_x + dim_yci
         return nps.RelationalMLP(
-            in_dim=1 if comparison_function == "euclidean" else dim_x + dim_yci,
+            in_dim=in_dim,
             relational_out_dim=dim_relational_embedding,
             num_layers=num_relational_enc_layers,
             width=relational_width,
             dtype=dtype,
-            comparison_function=comparison_function
-        )
-
-    def construct_mlp(dim_yci):
-        return nps.MLP(
-            in_dim=dim_relational_embedding + dim_yci,
-            out_dim=dim_embedding,
-            num_layers=num_enc_layers,
-            width=width,
-            dtype=dtype,
+            comparison_function=comparison_function,
         )
 
     relational_encoder = construct_relational_mlp(dim_yc[0])
-    if enc_same:
-        block = construct_mlp(dim_yc[0])
-
-    det_encoder = nps.Parallel(
-        *(
-            nps.Chain(
-                # encode here
-                nps.RelationalEncode(relational_encoder if enc_same else construct_relational_mlp(dim_yci)),
-                nps.DeepSet(block if enc_same else construct_mlp(dim_yci)),
-                nps.DeterministicLikelihood(),
-            )
-            for dim_yci in dim_yc
-        ),
-    )
 
     encoder = nps.Chain(
-        # We need to explicitly copy, because there will be multiple context sets in
-        # parallel, which will otherwise dispatch to the wrong method.
-        nps.Copy(2 + (dim_lv > 0)),
-        nps.Parallel(
+        nps.RepeatForAggregateInputs(
             nps.Chain(
-                nps.RepeatForAggregateInputs(
-                    # encode here
-                    nps.Chain(
-                        relational_encoder,
-                        nps.RelationalEncode(nps.InputsCoder()),
-                    )
-                ),
-                nps.DeterministicLikelihood(),
-            ),
-            det_encoder,
+                relational_encoder,  # if enc_same=False we need multiple relational encoder
+                nps.RelationalEncode(nps.InputsCoder()),
+            )
         ),
+        nps.DeterministicLikelihood(),
     )
     decoder = nps.Chain(
-        nps.Concatenate(),
         nps.RepeatForAggregateInputs(
             nps.Chain(
                 nps.MLP(
-                    in_dim=dim_relational_embedding
-                    + dim_embedding * len(dim_yc)
-                    + dim_lv,
+                    in_dim=dim_relational_embedding,
                     out_dim=mlp_out_channels,
                     num_layers=num_dec_layers,
                     # The capacity of this MLP should increase with the number of

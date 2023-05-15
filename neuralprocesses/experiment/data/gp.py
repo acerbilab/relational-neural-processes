@@ -4,6 +4,7 @@ import torch
 
 import neuralprocesses.torch as nps
 from .util import register_data
+import numpy as np
 
 __all__ = []
 
@@ -43,9 +44,13 @@ def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, 
     }
     config["transform"] = None
 
+    repnum = args.seed
+    num_seeds = 2
+    seeds = np.random.SeedSequence(entropy=11463518354837724398231700962801993226).generate_state(num_seeds * repnum)[-num_seeds:]
+
     gen_train = nps.construct_predefined_gens(
         torch.float32,
-        seed=10,
+        seed=int(seeds[0]),
         batch_size=args.batch_size,
         num_tasks=num_tasks_train,
         dim_x=args.dim_x,
@@ -60,7 +65,7 @@ def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, 
 
     gen_cv = lambda: nps.construct_predefined_gens(
         torch.float32,
-        seed=20,  # Use a different seed!
+        seed=int(seeds[1]),  # Use a different seed!
         batch_size=args.batch_size,
         num_tasks=num_tasks_cv,
         dim_x=args.dim_x,

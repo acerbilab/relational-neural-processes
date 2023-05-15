@@ -183,17 +183,41 @@ class RelationalMLP:
         batch_size, set_size, feature_dim = xc.shape
         _, target_set_size, _ = xt.shape
 
-        # Compute difference between target and context set
-        # (we also concatenate y_i to the context, and 0 for the target)
-        context_xp = B.concat(xc, yc, axis=-1).unsqueeze(1)
-        target_xp = B.concat(xt, B.cast(xt.dtype, B.zeros(batch_size, target_set_size, 1)), axis=-1).unsqueeze(2)
-
         if self.comparison_function == "euclidean":
-            diff_x = B.sqrt(B.sum((target_xp - context_xp)**2, axis=-1).reshape(batch_size, -1, 1))
+            context_xp = xc.unsqueeze(1)
+            target_xp = xt.unsqueeze(2)
+            # (batch_size, target_set_size, set_size, 1))
+            diff_x = B.sqrt(B.sum((target_xp - context_xp)**2, axis=-1).unsqueeze(-1))
+            diff_x = B.concat(diff_x, yc.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1).reshape(batch_size, -1, 2)
             batch_size, diff_size, filter_size = diff_x.shape
+            x = diff_x.view(batch_size * diff_size, filter_size)
+        elif self.comparison_function == "euclidean_new":
+            relational_matrix = B.sqrt(B.sum((xc.unsqueeze(1) - xc.unsqueeze(2))**2, axis=-1).unsqueeze(-1))
+            yc_matrix_1 = yc.unsqueeze(2).repeat(1, 1, set_size, 1)
+            yc_matrix_2 = yc.unsqueeze(1).repeat(1, set_size, 1, 1)
+            # shape: [batch_size, set_size, set_size, 3]
+            relational_matrix = B.concat(relational_matrix, yc_matrix_1, yc_matrix_2, axis=-1)
+            # shape: [batch_size, set_size * set_size, 3]
+            relational_matrix = relational_matrix.reshape(batch_size, set_size*set_size, 3)
+
+            context_xp = xc.unsqueeze(1)
+            target_xp = xt.unsqueeze(2)
+            # shape: [batch_size, target_set_size, set_size * set_size, 1]
+            diff_x = B.sqrt(B.sum((target_xp - context_xp) ** 2, axis=-1).unsqueeze(-1)).repeat(1, 1, set_size, 1)
+
+            # shape: [batch_size, target_set_size, set_size * set_size, 4]
+            diff_x = B.concat(diff_x, relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1)
+
+            diff_x = diff_x.reshape(batch_size, -1, 4)
+            batch_size, diff_size, filter_size = diff_x.shape
+            # x shape: [batch_size * target_set_size * set_size * set_size, 4]
             x = diff_x.view(batch_size * diff_size, filter_size)
 
         else:
+            # Compute difference between target and context set
+            # (we also concatenate y_i to the context, and 0 for the target)
+            context_xp = B.concat(xc, yc, axis=-1).unsqueeze(1)
+            target_xp = B.concat(xt, B.cast(xt.dtype, B.zeros(batch_size, target_set_size, 1)), axis=-1).unsqueeze(2)
             diff_x = (target_xp - context_xp).reshape(batch_size, -1, feature_dim + out_dim)
             batch_size, diff_size, filter_size = diff_x.shape
             x = diff_x.view(batch_size * diff_size, filter_size)
@@ -203,8 +227,8 @@ class RelationalMLP:
 
         encoded_feature_dim = x.shape[-1]
 
-        x = x.view(batch_size, target_set_size, set_size, encoded_feature_dim)
-        encoded_target_x = x.mean(dim=2)
+        x = x.view(batch_size, target_set_size, -1, encoded_feature_dim)
+        encoded_target_x = x.sum(dim=2)
 
         encoded_target_x = B.transpose(encoded_target_x)
         return encoded_target_x

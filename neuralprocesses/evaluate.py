@@ -7,7 +7,7 @@ from functools import partial
 
 import experiment as exp
 import lab as B
-import gc
+
 import neuralprocesses.torch as nps
 import numpy as np
 import torch
@@ -40,8 +40,6 @@ def train(state, model, opt, objective, gen, *, fix_noise):
         opt.zero_grad(set_to_none=True)
         val.backward()
         opt.step()
-        torch.cuda.empty_cache()
-        gc.collect()
 
     vals = B.concat(*vals)
     out.kv("Loglik (T)", exp.with_err(vals, and_lower=True))
@@ -71,13 +69,15 @@ def eval(state, model, objective, gen):
 
         # Report numbers.
         vals = B.concat(*vals)
+        kl = B.concat(*kls)
+        kl_diag = B.concat(*kls_diag)
         out.kv("Loglik (V)", exp.with_err(vals, and_lower=True))
         if kls:
             out.kv("KL (full)", exp.with_err(B.concat(*kls), and_upper=True))
         if kls_diag:
             out.kv("KL (diag)", exp.with_err(B.concat(*kls_diag), and_upper=True))
 
-        return state, B.mean(vals) - 1.96 * B.std(vals) / B.sqrt(len(vals))
+        return state, B.mean(vals), B.mean(kl), B.mean(kl_diag)
 
 
 def main(**kw_args):
@@ -169,7 +169,7 @@ def main(**kw_args):
     parser.add_argument("--patch", type=str)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--canonical-rule", type=str, choices=[None, "sum"], default=None)
-    parser.add_argument("--comparison-function", type=str, choices=["euclidean", "difference", "euclidean_new"], default="difference")
+    parser.add_argument("--comparison-function", type=str, choices=["euclidean", "difference"], default="difference")
 
     if kw_args:
         # Load the arguments from the keyword arguments passed to the function.
@@ -608,18 +608,7 @@ def main(**kw_args):
 
     # Setup training objective.
     if args.objective == "loglik":
-        objective = partial(
-            nps.loglik,
-            num_samples=args.num_samples,
-            normalise=not args.unnormalised,
-            canonical_rule=args.canonical_rule,
-        )
-        objective_cv = partial(
-            nps.loglik,
-            num_samples=args.num_samples,
-            normalise=not args.unnormalised,
-            canonical_rule=args.canonical_rule,
-        )
+
         objectives_eval = [
             (
                 "Loglik",
@@ -633,18 +622,7 @@ def main(**kw_args):
             )
         ]
     elif args.objective == "elbo":
-        objective = partial(
-            nps.elbo,
-            num_samples=args.num_samples,
-            subsume_context=True,
-            normalise=not args.unnormalised,
-        )
-        objective_cv = partial(
-            nps.elbo,
-            num_samples=args.num_samples,
-            subsume_context=False,  # Lower bound the right quantity.
-            normalise=not args.unnormalised,
-        )
+
         objectives_eval = [
             (
                 "ELBO",
@@ -695,22 +673,27 @@ def main(**kw_args):
 
         if not args.ar or args.also_ar:
             # Make some plots.
-            gen = gen_cv()
-            for i in range(args.evaluate_num_plots):
-                exp.visualise(
-                    model,
-                    gen,
-                    path=wd.file(f"evaluate-{i + 1:03d}.pdf"),
-                    config=config,
-                    canonical_rule=None
-                )
+            # gen = gen_cv()
+            # for i in range(args.evaluate_num_plots):
+            #     exp.visualise(
+            #         model,
+            #         gen,
+            #         path=wd.file(f"evaluate-{i + 1:03d}.pdf"),
+            #         config=config,
+            #         canonical_rule=None
+            #     )
 
             # For every objective and evaluation generator, do the evaluation.
+            result = np.zeros((3, 3))
             for objecive_name, objective_eval in objectives_eval:
                 with out.Section(objecive_name):
-                    for gen_name, gen in gens_eval():
+                    for i, (gen_name, gen) in enumerate(gens_eval()):
                         with out.Section(gen_name.capitalize()):
-                            state, _ = eval(state, model, objective_eval, gen)
+                            state, loglik, kl, kl_diag = eval(state, model, objective_eval, gen)
+                            result[i, 0], result[i, 1], result[i, 2] = loglik, kl, kl_diag
+
+            print(result)
+            np.save(wd.root + "/result.npy", result)
 
         # Always run AR evaluation for the conditional models.
         if not args.no_ar and (
@@ -730,7 +713,7 @@ def main(**kw_args):
             with out.Section("AR"):
                 for name, gen in gens_eval():
                     with out.Section(name.capitalize()):
-                        state, _ = eval(
+                        state, loglik, kl, kl_diag = eval(
                             state,
                             model,
                             partial(
@@ -745,96 +728,7 @@ def main(**kw_args):
         out.out("Finished evaluation. Sleeping for a minute before exiting.")
         time.sleep(60)
     else:
-        # Perform training. First, check if we want to resume training.
-        start = 0
-        if args.resume_at_epoch:
-            start = args.resume_at_epoch - 1
-            d_last = patch_model(
-                torch.load(wd.file("model-last.torch"), map_location=device)
-            )
-            d_best = patch_model(
-                torch.load(wd.file("model-best.torch"), map_location=device)
-            )
-            model.load_state_dict(d_last["weights"])
-            best_eval_lik = d_best["objective"]
-        else:
-            best_eval_lik = -np.inf
-
-        # Setup training loop.
-        opt = torch.optim.Adam(model.parameters(), args.rate)
-
-        # Set regularisation high for the first epochs.
-        original_epsilon = B.epsilon
-        B.epsilon = config["epsilon_start"]
-
-        for i in range(start, args.epochs):
-            with out.Section(f"Epoch {i + 1}"):
-                # Set regularisation to normal after the first epoch.
-                if i > 0:
-                    B.epsilon = original_epsilon
-
-                # Checkpoint at regular intervals if specified
-                if args.checkpoint_every is not None and i % args.checkpoint_every == 0:
-                    out.out("Checkpointing...")
-                    torch.save(
-                        {
-                            "weights": model.state_dict(),
-                            "epoch": i + 1,
-                        },
-                        wd.file(f"model-epoch-{i+1}.torch"),
-                    )
-
-                # Perform an epoch.
-                if config["fix_noise"] and i < config["fix_noise_epochs"]:
-                    fix_noise = 1e-4
-                else:
-                    fix_noise = None
-                state, _ = train(
-                    state,
-                    model,
-                    opt,
-                    objective,
-                    gen_train,
-                    fix_noise=fix_noise,
-                )
-
-                # The epoch is done. Now evaluate.
-                state, val = eval(state, model, objective_cv, gen_cv())
-
-
-                # Save current model.
-                torch.save(
-                    {
-                        "weights": model.state_dict(),
-                        "objective": val,
-                        "epoch": i + 1,
-                    },
-                    wd.file(f"model-last.torch"),
-                )
-
-                # Check if the model is the new best. If so, save it.
-                if val > best_eval_lik:
-                    out.out("New best model!")
-                    best_eval_lik = val
-                    torch.save(
-                        {
-                            "weights": model.state_dict(),
-                            "objective": val,
-                            "epoch": i + 1,
-                        },
-                        wd.file(f"model-best.torch"),
-                    )
-
-                # Visualise a few predictions by the model.
-                # gen = gen_cv()
-                # for j in range(5):
-                #     exp.visualise(
-                #         model,
-                #         gen,
-                #         path=wd.file(f"train-epoch-{i + 1:03d}-{j + 1}.pdf"),
-                #         config=config,
-                #         canonical_rule=args.canonical_rule
-                #     )
+        exit()
 
 
 if __name__ == "__main__":
