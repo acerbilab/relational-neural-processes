@@ -7,9 +7,8 @@ from plum import convert
 
 from .. import _dispatch
 from ..datadims import data_dims
-from ..util import register_module, compress_batch_dimensions, with_first_last
 from ..parallel import Parallel
-
+from ..util import register_module, compress_batch_dimensions, with_first_last
 
 __all__ = ["Linear", "MLP", "UNet", "ConvNet", "Conv", "ResidualBlock", "RelationalMLP"]
 
@@ -99,7 +98,6 @@ class MLP:
 
 @_dispatch
 def code(coder: Union[Linear, MLP], xz, z: B.Numeric, x, **kw_args):
-
     d = data_dims(xz)
 
     # Construct permutation to switch the channel dimension and the last dimension.
@@ -142,7 +140,7 @@ class RelationalMLP:
         width: Optional[int] = None,
         nonlinearity=None,
         dtype=None,
-        comparison_function="euclidean"
+        comparison_function="euclidean",
     ):
         # Check that one of the two specifications is given.
         self.relational_out_dim = relational_out_dim
@@ -187,26 +185,40 @@ class RelationalMLP:
             context_xp = xc.unsqueeze(1)
             target_xp = xt.unsqueeze(2)
             # (batch_size, target_set_size, set_size, 1))
-            diff_x = B.sqrt(B.sum((target_xp - context_xp)**2, axis=-1).unsqueeze(-1))
-            diff_x = B.concat(diff_x, yc.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1).reshape(batch_size, -1, 2)
+            diff_x = B.sqrt(B.sum((target_xp - context_xp) ** 2, axis=-1).unsqueeze(-1))
+            diff_x = B.concat(
+                diff_x, yc.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1
+            ).reshape(batch_size, -1, 2)
             batch_size, diff_size, filter_size = diff_x.shape
             x = diff_x.view(batch_size * diff_size, filter_size)
         elif self.comparison_function == "euclidean_new":
-            relational_matrix = B.sqrt(B.sum((xc.unsqueeze(1) - xc.unsqueeze(2))**2, axis=-1).unsqueeze(-1))
+            relational_matrix = B.sqrt(
+                B.sum((xc.unsqueeze(1) - xc.unsqueeze(2)) ** 2, axis=-1).unsqueeze(-1)
+            )
             yc_matrix_1 = yc.unsqueeze(2).repeat(1, 1, set_size, 1)
             yc_matrix_2 = yc.unsqueeze(1).repeat(1, set_size, 1, 1)
             # shape: [batch_size, set_size, set_size, 3]
-            relational_matrix = B.concat(relational_matrix, yc_matrix_1, yc_matrix_2, axis=-1)
+            relational_matrix = B.concat(
+                relational_matrix, yc_matrix_1, yc_matrix_2, axis=-1
+            )
             # shape: [batch_size, set_size * set_size, 3]
-            relational_matrix = relational_matrix.reshape(batch_size, set_size*set_size, 3)
+            relational_matrix = relational_matrix.reshape(
+                batch_size, set_size * set_size, 3
+            )
 
             context_xp = xc.unsqueeze(1)
             target_xp = xt.unsqueeze(2)
             # shape: [batch_size, target_set_size, set_size * set_size, 1]
-            diff_x = B.sqrt(B.sum((target_xp - context_xp) ** 2, axis=-1).unsqueeze(-1)).repeat(1, 1, set_size, 1)
+            diff_x = B.sqrt(
+                B.sum((target_xp - context_xp) ** 2, axis=-1).unsqueeze(-1)
+            ).repeat(1, 1, set_size, 1)
 
             # shape: [batch_size, target_set_size, set_size * set_size, 4]
-            diff_x = B.concat(diff_x, relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1)
+            diff_x = B.concat(
+                diff_x,
+                relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1),
+                axis=-1,
+            )
 
             diff_x = diff_x.reshape(batch_size, -1, 4)
             batch_size, diff_size, filter_size = diff_x.shape
@@ -217,8 +229,12 @@ class RelationalMLP:
             # Compute difference between target and context set
             # (we also concatenate y_i to the context, and 0 for the target)
             context_xp = B.concat(xc, yc, axis=-1).unsqueeze(1)
-            target_xp = B.concat(xt, B.cast(xt.dtype, B.zeros(batch_size, target_set_size, 1)), axis=-1).unsqueeze(2)
-            diff_x = (target_xp - context_xp).reshape(batch_size, -1, feature_dim + out_dim)
+            target_xp = B.concat(
+                xt, B.cast(xt.dtype, B.zeros(batch_size, target_set_size, 1)), axis=-1
+            ).unsqueeze(2)
+            diff_x = (target_xp - context_xp).reshape(
+                batch_size, -1, feature_dim + out_dim
+            )
             batch_size, diff_size, filter_size = diff_x.shape
             x = diff_x.view(batch_size * diff_size, filter_size)
 
@@ -239,10 +255,11 @@ def code(coder: RelationalMLP, xz, z: B.Numeric, x, **kw_args):
     xz = coder(xz, z, x)
     return xz, z
 
+
 @_dispatch
 def code(coder: RelationalMLP, xz: Parallel, z: Parallel, x, **kw_args):
-    xz = xz[kw_args['select_channel']]
-    z = z[kw_args['select_channel']]
+    xz = xz[kw_args["select_channel"]]
+    z = z[kw_args["select_channel"]]
     xz = coder(xz, z, x)
     return xz, z
 
