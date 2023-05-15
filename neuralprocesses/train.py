@@ -327,14 +327,24 @@ def main(**kw_args):
     }
 
     # Setup data generators for training and for evaluation.
-    gen_train, gen_cv, gens_eval = exp.data[args.data]["setup"](
-        args,
-        config,
-        num_tasks_train=2**6 if args.train_fast else 2**14,
-        num_tasks_cv=2**6 if args.train_fast else 2**12,
-        num_tasks_eval=2**6 if args.evaluate_fast else 2**12,
-        device=device,
-    )
+    if args.data == "cancer":
+        gen_train, gen_cv, gens_eval = exp.data[args.data]["setup"](
+            args,
+            config,
+            num_tasks_train=2**6 if args.train_fast else 2**10,
+            num_tasks_cv=2**6 if args.train_fast else 2**8,
+            num_tasks_eval=2**6 if args.evaluate_fast else 2**8,
+            device=device,
+        )
+    else:
+        gen_train, gen_cv, gens_eval = exp.data[args.data]["setup"](
+            args,
+            config,
+            num_tasks_train=2**6 if args.train_fast else 2**14,
+            num_tasks_cv=2**6 if args.train_fast else 2**12,
+            num_tasks_eval=2**6 if args.evaluate_fast else 2**12,
+            device=device,
+        )
 
     # Apply defaults for the number of epochs and the learning rate. The experiment
     # is allowed to adjust these.
