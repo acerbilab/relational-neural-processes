@@ -6,7 +6,16 @@ from config import config
 import neuralprocesses.torch as nps
 
 
-def train_epoch(state, model, opt, objective, gen, *, fix_noise):
+def train_epoch(
+    state,
+    model,
+    opt,
+    objective,
+    gen,
+    device,
+    *,
+    fix_noise,
+):
     """Train for an epoch."""
     vals = []
     for batch in gen.epoch():
@@ -29,7 +38,7 @@ def train_epoch(state, model, opt, objective, gen, *, fix_noise):
     return state, vals.mean(), B.mean(vals) - 1.96 * B.std(vals) / B.sqrt(len(vals))
 
 
-def eval(state, model, objective, gen):
+def eval(state, model, objective, gen, device):
     """Perform evaluation."""
     with torch.no_grad():
         vals, kls, kls_diag = [], [], []

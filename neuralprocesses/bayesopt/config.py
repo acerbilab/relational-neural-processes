@@ -10,7 +10,7 @@ class PARAM:
     model_name = "rnp"  # one of rnp, gnp, agnp
     target_name = "hartmann3d"  # one of hartmann{3,6}d, rastrigin, ackley
     grace_period = 100
-    save_name = f"BO/{target_name}_{model_name}"
+    save_name = f"BO/"
 
     local_path = "../../results"
     load_name = f"{local_path}/{save_name}"

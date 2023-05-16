@@ -17,7 +17,15 @@ if not os.path.exists("../BO"):
 
 
 def train(
-    model, state, objective, objective_cv, gen_train, gen_cv, param, verbose=False
+    model,
+    state,
+    objective,
+    objective_cv,
+    gen_train,
+    gen_cv,
+    param,
+    device,
+    verbose=False,
 ):
     # Setup training loop
     opt = th.optim.Adam(model.parameters(), args.rate)
@@ -44,12 +52,13 @@ def train(
             opt,
             objective,
             gen_train,
+            device=device,
             fix_noise=fix_noise,
         )
         log_loss[i] = vals.item()
 
         # The epoch is done. Now evaluate.
-        state, val, _ = eval(state, model, objective_cv, gen_cv())
+        state, val, _ = eval(state, model, objective_cv, gen_cv(), device)
         log_eval[i] = val.item()
         if log_eval[i] > min_val:
             min_val = log_eval[i]
@@ -78,7 +87,7 @@ def train(
 @click.option("--save_postfix", default="")
 def main(run, target, model, save_postfix):
     param = PARAM
-    param.save_name = f"{param.save_name}_{model}_{save_postfix}"
+    param.save_name = f"{target}_{param.save_name}_{model}_{save_postfix}"
     print(f"Training: {param.save_name}")
     param.target_name = target
     param.model_name = model
@@ -90,9 +99,9 @@ def main(run, target, model, save_postfix):
 
     args["seed"] = run
 
+    B.set_global_device(device)
     state = B.create_random_state(th.float32, seed=0)
     B.epsilon = config["epsilon"]
-    B.set_global_device(device)
 
     model = get_model(param.model_name, args, device)
 
@@ -100,7 +109,17 @@ def main(run, target, model, save_postfix):
 
     gen_train, gen_cv, gens_eval = get_generators(args.data)
 
-    train(model, state, objective, objective_cv, gen_train, gen_cv, param, verbose=True)
+    train(
+        model,
+        state,
+        objective,
+        objective_cv,
+        gen_train,
+        gen_cv,
+        param,
+        device,
+        verbose=True,
+    )
 
 
 if __name__ == "__main__":
