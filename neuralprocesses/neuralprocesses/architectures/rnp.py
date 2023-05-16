@@ -100,7 +100,7 @@ def construct_rnp(
         if comparison_function == "euclidean":
             in_dim = 2
         elif comparison_function == "euclidean_new":
-            in_dim = 2
+            in_dim = 4
         else:
             in_dim = dim_x + dim_yci
         return nps.RelationalMLP(
