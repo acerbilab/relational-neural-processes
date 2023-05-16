@@ -78,7 +78,8 @@ def train(
 @click.option("--save_postfix", default="")
 def main(run, target, model, save_postfix):
     param = PARAM
-    param.save_name = param.save_name + save_postfix
+    param.save_name = f"{param.save_name}_{model}_{save_postfix}"
+    print(f"Training: {param.save_name}")
     param.target_name = target
     param.model_name = model
     # TODO: Do I need this?
