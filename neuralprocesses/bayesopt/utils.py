@@ -318,7 +318,7 @@ def get_target(target_name):
         target = bth.test_functions.Ackley(5)
         tar_min = 0.0
     elif target_name == "hartmann6d":
-        target = bth.test_functions.Hartmann(3)
+        target = bth.test_functions.Hartmann(6)
         tar_min = -3.32237
     else:
         raise NotImplementedError()
