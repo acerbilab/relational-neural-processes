@@ -85,8 +85,8 @@ def get_model(model_name, args, device):
             likelihood="het",
             transform=config["transform"],
         )
-    elif model_name == "rcnp":
-        model = nps.construct_rnp(
+    elif model_name == "contextrcnp":
+        model = nps.construct_contextrnp(
             dim_x=config["dim_x"],
             dim_yc=(1,) * config["dim_y"],
             dim_yt=config["dim_y"],
@@ -101,8 +101,8 @@ def get_model(model_name, args, device):
             transform=config["transform"],
             comparison_function=args.comparison_function,
         )
-    elif model_name == "rgnp":
-        model = nps.construct_rnp(
+    elif model_name == "contextrgnp":
+        model = nps.construct_contextrnp(
             dim_x=config["dim_x"],
             dim_yc=(1,) * config["dim_y"],
             dim_yt=config["dim_y"],
@@ -117,8 +117,8 @@ def get_model(model_name, args, device):
             transform=config["transform"],
             comparison_function=args.comparison_function,
         )
-    elif model_name == "srcnp":
-        model = nps.construct_srnp(
+    elif model_name == "rcnp":
+        model = nps.construct_rnp(
             dim_x=config["dim_x"],
             dim_yc=(1,) * config["dim_y"],
             dim_yt=config["dim_y"],
@@ -132,8 +132,8 @@ def get_model(model_name, args, device):
             transform=config["transform"],
             comparison_function=args.comparison_function,
         )
-    elif model_name == "srgnp":
-        model = nps.construct_srnp(
+    elif model_name == "rgnp":
+        model = nps.construct_rnp(
             dim_x=config["dim_x"],
             dim_yc=(1,) * config["dim_y"],
             dim_yt=config["dim_y"],
@@ -212,84 +212,6 @@ def get_model(model_name, args, device):
             width=config["width"],
             likelihood="het",
             dim_lv=config["dim_embedding"],
-            transform=config["transform"],
-        )
-    elif model_name == "convcnp":
-        model = nps.construct_convgnp(
-            points_per_unit=config["points_per_unit"],
-            dim_x=config["dim_x"],
-            dim_yc=(1,) * config["dim_y"],
-            dim_yt=config["dim_y"],
-            likelihood="het",
-            conv_arch=args.arch,
-            unet_channels=config["unet_channels"],
-            unet_strides=config["unet_strides"],
-            conv_channels=config["conv_channels"],
-            conv_layers=config["num_layers"],
-            conv_receptive_field=config["conv_receptive_field"],
-            margin=config["margin"],
-            encoder_scales=config["encoder_scales"],
-            transform=config["transform"],
-        )
-    elif model_name == "convgnp":
-        model = nps.construct_convgnp(
-            points_per_unit=config["points_per_unit"],
-            dim_x=config["dim_x"],
-            dim_yc=(1,) * config["dim_y"],
-            dim_yt=config["dim_y"],
-            likelihood="lowrank",
-            conv_arch=args.arch,
-            unet_channels=config["unet_channels"],
-            unet_strides=config["unet_strides"],
-            conv_channels=config["conv_channels"],
-            conv_layers=config["num_layers"],
-            conv_receptive_field=config["conv_receptive_field"],
-            num_basis_functions=config["num_basis_functions"],
-            margin=config["margin"],
-            encoder_scales=config["encoder_scales"],
-            transform=config["transform"],
-        )
-    elif model_name == "convnp":
-        if config["dim_x"] == 2:
-            # Reduce the number of channels in the conv. architectures by a factor
-            # $\sqrt(2)$. This keeps the runtime in check and reduces the parameters
-            # of the ConvNP to the number of parameters of the ConvCNP.
-            config["unet_channels"] = tuple(
-                int(c / 2**0.5) for c in config["unet_channels"]
-            )
-            config["dws_channels"] = int(config["dws_channels"] / 2**0.5)
-        model = nps.construct_convgnp(
-            points_per_unit=config["points_per_unit"],
-            dim_x=config["dim_x"],
-            dim_yc=(1,) * config["dim_y"],
-            dim_yt=config["dim_y"],
-            likelihood="het",
-            conv_arch=args.arch,
-            unet_channels=config["unet_channels"],
-            unet_strides=config["unet_strides"],
-            conv_channels=config["conv_channels"],
-            conv_layers=config["num_layers"],
-            conv_receptive_field=config["conv_receptive_field"],
-            dim_lv=16,
-            margin=config["margin"],
-            encoder_scales=config["encoder_scales"],
-            transform=config["transform"],
-        )
-    elif model_name == "fullconvgnp":
-        model = nps.construct_fullconvgnp(
-            points_per_unit=config["points_per_unit"],
-            dim_x=config["dim_x"],
-            dim_yc=(1,) * config["dim_y"],
-            dim_yt=config["dim_y"],
-            conv_arch=args.arch,
-            unet_channels=config["unet_channels"],
-            unet_strides=config["unet_strides"],
-            conv_channels=config["conv_channels"],
-            conv_layers=config["num_layers"],
-            conv_receptive_field=config["conv_receptive_field"],
-            kernel_factor=config["fullconvgnp_kernel_factor"],
-            margin=config["margin"],
-            encoder_scales=config["encoder_scales"],
             transform=config["transform"],
         )
     else:
