@@ -70,11 +70,18 @@ def train(
             break
         th.cuda.empty_cache()
         gc.collect()
+        if (i % 10 == 0) and verbose:
+            plt.plot(log_loss)
+            plt.plot(log_eval)
+            plt.title(f"trained for {i}/{args.epochs}")
+            plt.savefig(f"{param.save_name}_log_loss.png")
+            plt.close()
     th.save(model.state_dict(), f"{param.save_name}.pt")
     if verbose:
         print("Trained successfully")
         plt.plot(log_loss)
         plt.plot(log_eval)
+        plt.title(f"trained for {i}/{args.epochs}")
         plt.savefig(f"{param.save_name}_log_loss.png")
         plt.close()
     return log_loss, log_eval

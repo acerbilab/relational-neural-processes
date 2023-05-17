@@ -9,12 +9,11 @@ import torch as th
 class PARAM:
     model_name = "rnp"  # one of rnp, gnp, agnp
     target_name = "hartmann3d"  # one of hartmann{3,6}d, rastrigin, ackley
-    grace_period = 100
+    grace_period = 300
     save_name = f"BO/"
 
     local_path = "../../results"
     load_name = f"{local_path}/{save_name}"
-    n_steps = 20
 
     dim_x, bound = {
         "hartmann3d": (3, (0, 1)),
