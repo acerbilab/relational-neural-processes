@@ -83,11 +83,6 @@ def rnp_get_candidate_cma_tmp(model, train_X, train_Y):
     ytmp = -opt_func(th.tensor(x0tmp, device=train_X.device, dtype=train_X.dtype))
     x0 = x0tmp[ytmp.argmin()]
 
-    # print("foo")
-    # print(ytmp.min())
-    # print(train_Y.min())
-    # print("bar")
-
     es = cma.CMAEvolutionStrategy(
         x0=x0,
         sigma0=0.2,
@@ -111,26 +106,15 @@ def rnp_get_candidate_cma_tmp(model, train_X, train_Y):
 
 
 def rnp_get_candidate_cma(model, train_X, train_Y):
-    # Y = -standardize(train_Y)
-    # print(train_Y.shape)
-    # print(Y.shape)
     train_Y = -standardize(train_Y)
-    # print(train_Y.shape)
-    # print(Y.shape)
     opt_func = lambda x: EI_objective(x, model, train_X, train_Y, train_Y.max())
 
     # x0 = np.random.rand(2, train_X.shape[1])
     x0 = np.random.rand(train_X.shape[1])
-    # print(x0.shape)
 
     x0tmp = np.random.rand(100, train_X.shape[1])
     ytmp = opt_func(th.tensor(x0tmp, device=train_X.device, dtype=train_X.dtype))
     x0 = x0tmp[ytmp.argmax()]
-
-    # print("foo")
-    # print(ytmp.min())
-    # print(train_Y.min())
-    # print("bar")
 
     es = cma.CMAEvolutionStrategy(
         x0=x0,
@@ -140,7 +124,6 @@ def rnp_get_candidate_cma(model, train_X, train_Y):
 
     X = train_X
 
-    # print(opt_func(X).max())
     while not es.stop():
         xs = es.ask()
         X = th.tensor(xs, device=X.device, dtype=X.dtype)
@@ -157,11 +140,6 @@ def rnp_get_candidate_cma(model, train_X, train_Y):
 
 @th.no_grad()
 def EI_objective(x, model, train_X, train_Y, f_best):
-    #  x = th.from_numpy(x).float()
-    # print("foo")
-    # print(x.shape)
-    # print(train_X.T[None].shape)
-    # print(train_Y.T[None].shape)
     dimx = x.shape[1]
 
     pred = model(train_X.T[None], train_Y.T[None], x.T[None])
@@ -169,7 +147,6 @@ def EI_objective(x, model, train_X, train_Y, f_best):
     res = compute_EI(pred.mean, pred.var, f_best).data.flatten()
     bound = th.logical_and(0 < x, x < 1).sum(-1)
     res[bound < dimx] = 0.0
-    # print(res)
     return res
 
 
@@ -194,12 +171,10 @@ def baseline_optim(init_x, init_y, n_steps, bound, target):
     train_X = th.clone(init_x).type(th.double)
     train_Y = th.clone(init_y).type(th.double)
     # Want to minimize the target
-    # optima[0] = target(train_Y).min()
     optima[0] = train_Y.min()
     for step in tqdm(range(1, n_steps)):
         # candidate = baseline_get_candidate(train_X, train_Y, bound, optima[step])
         candidate = baseline_get_candidate_cma(train_X, train_Y)
-        # print(target(candidate))
         train_X = th.cat((train_X, candidate))
         train_Y = th.cat((train_Y, target(candidate)[None]))
         if train_Y[-1, 0] < optima[step - 1]:
@@ -214,28 +189,17 @@ def rnp_optim(model, init_x, init_y, n_steps, target):
 
     train_X = th.clone(init_x)  # .type(th.double)
     train_Y = th.clone(init_y)  # .type(th.double)
-    # optima[0] = target(train_Y).min()
     optima[0] = train_Y.min()
-    # assert False
     for step in tqdm(range(1, n_steps)):
         tqdm.write(f"## {step}/{n_steps}")
-        # print(f"Y: {train_Y.min():.4f}")
-        # print(f"O: {optima.min():.4f}")
-        # candidate = rnp_get_candidate_cma(model, train_X, train_Y)
         candidate = rnp_get_candidate_cma(model, train_X, train_Y)
-        # candidate = rnp_get_candidate_rand(model, train_X, train_Y)
 
         train_X = th.cat((train_X, candidate))
         train_Y = th.cat((train_Y, target(candidate)[None]))
-        # print(f"T: {target(candidate).item():.4f}")
         if train_Y[-1, 0] < optima[step - 1]:
             optima[step] = train_Y[-1, 0]
         else:
             optima[step] = optima[step - 1]
-    # print("#####")
-    # print(train_Y.flatten())
-    # print(optima)
-    # assert False
     return optima
 
 
@@ -249,9 +213,6 @@ def compute_EI(mu, var, f_best):
 def rnp_get_candidate_rand(model, train_X, train_Y):
     x_range = th.rand((50, train_X.shape[1])).T[None]
     with th.no_grad():
-        # print(train_X.T[None].shape)
-        # print(train_Y.T[None].shape)
-        # print(x_range[None].shape)
         pred = model(train_X.T[None], train_Y.T[None], x_range)
         EI = compute_EI(pred.mean.squeeze(), pred.var.squeeze(), train_Y.max())
         candidate = x_range[:, :, th.argmax(EI)]
