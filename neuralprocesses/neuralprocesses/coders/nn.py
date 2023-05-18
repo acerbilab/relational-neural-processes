@@ -261,7 +261,7 @@ class RelationalMLP:
 
                 batch_size, diff_size, filter_size = dist_x.shape
                 # x shape: [batch_size * target_set_size * set_size * set_size, 4]
-                x = diff_x.view(batch_size * diff_size, filter_size)
+                x = dist_x.view(batch_size * diff_size, filter_size)
             elif self.comparison_function == "difference":
                 relational_matrix = xc.unsqueeze(2) - xc.unsqueeze(1)
                 yc_matrix_1 = yc.unsqueeze(2).repeat(1, 1, set_size, 1)
