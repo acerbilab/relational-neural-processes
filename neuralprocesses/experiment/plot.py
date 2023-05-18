@@ -8,7 +8,7 @@ from wbml.plot import tweak
 __all__ = ["visualise"]
 
 
-def visualise(model, gen, *, path, config, predict=nps.predict, canonical_rule):
+def visualise(model, gen, *, path, config, predict=nps.predict):
     """Plot the prediction for the first element of a batch."""
     if config["dim_x"] == 1:
         visualise_1d(
@@ -17,7 +17,6 @@ def visualise(model, gen, *, path, config, predict=nps.predict, canonical_rule):
             path=path,
             config=config,
             predict=predict,
-            canonical_rule=canonical_rule,
         )
     elif config["dim_x"] == 2:
         visualise_2d(
@@ -26,13 +25,12 @@ def visualise(model, gen, *, path, config, predict=nps.predict, canonical_rule):
             path=path,
             config=config,
             predict=predict,
-            canonical_rule=canonical_rule
         )
     else:
         pass  # Not implemented. Just do nothing.
 
 
-def visualise_1d(model, gen, *, path, config, predict, canonical_rule):
+def visualise_1d(model, gen, *, path, config, predict):
     batch = nps.batch_index(gen.generate_batch(), slice(0, 1, None))
 
     try:
@@ -52,7 +50,6 @@ def visualise_1d(model, gen, *, path, config, predict, canonical_rule):
             nps.AggregateInput(
                 *((x[None, None, :], i) for i in range(config["dim_y"]))
             ),
-            canonical_rule=canonical_rule
         )
 
     plt.figure(figsize=(8, 6 * config["dim_y"]))
@@ -124,7 +121,7 @@ def visualise_1d(model, gen, *, path, config, predict, canonical_rule):
     plt.close()
 
 
-def visualise_2d(model, gen, *, path, config, predict, canonical_rule):
+def visualise_2d(model, gen, *, path, config, predict):
     batch = nps.batch_index(gen.generate_batch(), slice(0, 1, None))
 
     try:
@@ -153,7 +150,6 @@ def visualise_2d(model, gen, *, path, config, predict, canonical_rule):
                 *((x_list[None, :, :], i) for i in range(config["dim_y"]))
             ),
             num_samples=2,
-            canonical_rule=canonical_rule
         )
 
     vmin = max(B.max(mean), B.max(samples))

@@ -98,8 +98,8 @@ def main(**kw_args):
         choices=[
             "rcnp",
             "rgnp",
-            "contextrcnp",
-            "contextrgnp",
+            "fullrcnp",
+            "fullrgnp",
             "cnp",
             "gnp",
             "np",
@@ -173,8 +173,7 @@ def main(**kw_args):
     )
     parser.add_argument("--patch", type=str)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--canonical-rule", type=str, choices=[None, "sum"], default=None)
-    parser.add_argument("--comparison-function", type=str, choices=["euclidean", "difference", "euclidean_new"], default="difference")
+    parser.add_argument("--comparison-function", type=str, choices=["euclidean", "difference", "euclidean_new", "partly_encode"], default="difference")
 
     if kw_args:
         # Load the arguments from the keyword arguments passed to the function.
@@ -231,12 +230,8 @@ def main(**kw_args):
     }:
         del args.arch
 
-    # no need to sort when dim_x = 1
-    if args.dim_x == 1:
-        args.canonical_rule = None
-
     # translational-equivariance function for non-isotropic kernel
-    if args.data not in ["eq", "matern"]:  # TODO: add more isotropic functions here
+    if args.data not in ["eq", "matern"]:
         args.comparison_function = "difference"
 
     # Remove the dimensionality specification if the experiment doesn't need it.
@@ -277,7 +272,6 @@ def main(**kw_args):
         args.model,
         *((args.arch,) if hasattr(args, "arch") else ()),
         args.objective,
-        # "none" if args.canonical_rule is None else str(args.canonical_rule),
         str(args.seed),
         log=f"log{suffix}.txt",
         diff=f"diff{suffix}.txt",
@@ -321,9 +315,9 @@ def main(**kw_args):
         "cholesky_retry_factor": 1e6,
         "fix_noise": None,
         "fix_noise_epochs": 3,
-        "width": 256,
-        "relational_width": 256,
-        "dim_relational_embeddings": 256,
+        "width": 128,  # 256
+        "relational_width": 128,  # 256,
+        "dim_relational_embeddings": 128,  # 256
         "dim_embedding": 256,
         "enc_same": False,
         "num_heads": 8,
@@ -640,13 +634,11 @@ def main(**kw_args):
             nps.loglik,
             num_samples=args.num_samples,
             normalise=not args.unnormalised,
-            canonical_rule=args.canonical_rule,
         )
         objective_cv = partial(
             nps.loglik,
             num_samples=args.num_samples,
             normalise=not args.unnormalised,
-            canonical_rule=args.canonical_rule,
         )
         objectives_eval = [
             (
@@ -656,7 +648,6 @@ def main(**kw_args):
                     num_samples=args.evaluate_num_samples,
                     batch_size=args.evaluate_batch_size,
                     normalise=not args.unnormalised,
-                    canonical_rule=args.canonical_rule,
                 ),
             )
         ]
@@ -730,7 +721,6 @@ def main(**kw_args):
                     gen,
                     path=wd.file(f"evaluate-{i + 1:03d}.pdf"),
                     config=config,
-                    canonical_rule=None
                 )
 
             # For every objective and evaluation generator, do the evaluation.
@@ -861,7 +851,6 @@ def main(**kw_args):
                 #         gen,
                 #         path=wd.file(f"train-epoch-{i + 1:03d}-{j + 1}.pdf"),
                 #         config=config,
-                #         canonical_rule=args.canonical_rule
                 #     )
 
 

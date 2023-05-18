@@ -69,15 +69,17 @@ def eval(state, model, objective, gen):
 
         # Report numbers.
         vals = B.concat(*vals)
-        kl = B.concat(*kls)
-        kl_diag = B.concat(*kls_diag)
         out.kv("Loglik (V)", exp.with_err(vals, and_lower=True))
         if kls:
+            kl = B.concat(*kls)
             out.kv("KL (full)", exp.with_err(B.concat(*kls), and_upper=True))
         if kls_diag:
+            kl_diag = B.concat(*kls_diag)
             out.kv("KL (diag)", exp.with_err(B.concat(*kls_diag), and_upper=True))
-
-        return state, B.mean(vals), B.mean(kl), B.mean(kl_diag)
+        if kls:
+            return state, B.mean(vals), B.mean(kl), B.mean(kl_diag)
+        else:
+            return state, B.mean(vals), 0, 0
 
 
 def main(**kw_args):
@@ -166,10 +168,15 @@ def main(**kw_args):
         type=str,
         choices=["random", "interpolation", "forecasting", "reconstruction"],
     )
+    parser.add_argument(
+        "--cancer-obs-type",
+        type=str,
+        choices=["sane", "cancer", "diff"],
+        default="diff"
+    )
     parser.add_argument("--patch", type=str)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--canonical-rule", type=str, choices=[None, "sum"], default=None)
-    parser.add_argument("--comparison-function", type=str, choices=["euclidean", "difference"], default="difference")
+    parser.add_argument("--comparison-function", type=str, choices=["euclidean", "difference", "euclidean_new"], default="difference")
 
     if kw_args:
         # Load the arguments from the keyword arguments passed to the function.
@@ -226,10 +233,6 @@ def main(**kw_args):
     }:
         del args.arch
 
-    # no need to sort when dim_x = 1
-    if args.dim_x == 1:
-        args.canonical_rule = None
-
     # translational-equivariance function for non-isotropic kernel
     if args.data not in ["eq", "matern"]:  # TODO: add more isotropic functions here
         args.comparison_function = "difference"
@@ -271,7 +274,6 @@ def main(**kw_args):
         args.model,
         *((args.arch,) if hasattr(args, "arch") else ()),
         args.objective,
-        # "none" if args.canonical_rule is None else str(args.canonical_rule),
         str(args.seed),
         log=f"log{suffix}.txt",
         diff=f"diff{suffix}.txt",
@@ -290,8 +292,18 @@ def main(**kw_args):
 
     B.set_global_device(device)
     # Maintain an explicit random state through the execution.
-    state = B.create_random_state(torch.float32, seed=args.seed)
-    B.set_random_seed(args.seed)
+    if args.data == "cancer":
+        num_seeds = 3
+        repnum = args.seed
+        assert (repnum > 0)
+        this_seeds = np.random.SeedSequence(entropy=11463518354837724398231700962801993226).generate_state(
+            num_seeds * repnum)[-num_seeds:]
+        # print(this_seeds)
+        state = B.create_random_state(torch.float32, seed=int(this_seeds[0]))
+        B.set_random_seed(int(this_seeds[0]))
+    else:
+        state = B.create_random_state(torch.float32, seed=args.seed)
+        B.set_random_seed(args.seed)
 
     # General config.
     config = {
@@ -305,9 +317,9 @@ def main(**kw_args):
         "cholesky_retry_factor": 1e6,
         "fix_noise": None,
         "fix_noise_epochs": 3,
-        "width": 256,
-        "relational_width": 256,
-        "dim_relational_embeddings": 256,
+        "width": 128,
+        "relational_width": 128,
+        "dim_relational_embeddings": 128,
         "dim_embedding": 256,
         "enc_same": False,
         "num_heads": 8,
@@ -324,6 +336,7 @@ def main(**kw_args):
         # the CNN architecture. We therefore set it to 64.
         "num_basis_functions": 64,
         "eeg_mode": args.eeg_mode,
+        "cancer_obs_type": args.cancer_obs_type,
     }
 
     # Setup data generators for training and for evaluation.
@@ -617,7 +630,6 @@ def main(**kw_args):
                     num_samples=args.evaluate_num_samples,
                     batch_size=args.evaluate_batch_size,
                     normalise=not args.unnormalised,
-                    canonical_rule=args.canonical_rule,
                 ),
             )
         ]
@@ -680,7 +692,6 @@ def main(**kw_args):
             #         gen,
             #         path=wd.file(f"evaluate-{i + 1:03d}.pdf"),
             #         config=config,
-            #         canonical_rule=None
             #     )
 
             # For every objective and evaluation generator, do the evaluation.
@@ -726,7 +737,7 @@ def main(**kw_args):
 
         # Sleep for sixty seconds before exiting.
         out.out("Finished evaluation. Sleeping for a minute before exiting.")
-        time.sleep(60)
+        # time.sleep(60)
     else:
         exit()
 
