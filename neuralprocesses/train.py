@@ -40,8 +40,8 @@ def train(state, model, opt, objective, gen, *, fix_noise):
         opt.zero_grad(set_to_none=True)
         val.backward()
         opt.step()
-        torch.cuda.empty_cache()
-        gc.collect()
+        # torch.cuda.empty_cache()
+        # gc.collect()
 
     vals = B.concat(*vals)
     out.kv("Loglik (T)", exp.with_err(vals, and_lower=True))
