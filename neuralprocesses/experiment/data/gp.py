@@ -9,7 +9,7 @@ import numpy as np
 __all__ = []
 
 
-def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device):
+def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device, seeds):
     config["dim_x"] = args.dim_x
     config["dim_y"] = args.dim_y
 
@@ -36,10 +36,6 @@ def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, 
         2: {"range": ((-2, 2), (-2, 2))},
     }
     config["transform"] = None
-
-    repnum = args.seed
-    num_seeds = 2
-    seeds = np.random.SeedSequence(entropy=11463518354837724398231700962801993226).generate_state(num_seeds * repnum)[-num_seeds:]
 
     gen_train = nps.construct_predefined_gens(
         torch.float32,
