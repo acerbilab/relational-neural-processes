@@ -321,9 +321,9 @@ def main(**kw_args):
         "cholesky_retry_factor": 1e6,
         "fix_noise": None,
         "fix_noise_epochs": 3,
-        "width": 128,  # 256
-        "relational_width": 128,  # 256,
-        "dim_relational_embeddings": 128,  # 256
+        "width": 256,  # 256
+        "relational_width": 256,  # 256,
+        "dim_relational_embeddings": 256,  # 256
         "dim_embedding": 256,
         "enc_same": False,
         "num_heads": 8,
