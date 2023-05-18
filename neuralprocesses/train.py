@@ -173,7 +173,12 @@ def main(**kw_args):
     )
     parser.add_argument("--patch", type=str)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--comparison-function", type=str, choices=["euclidean", "difference", "euclidean_new", "partly_encode"], default="difference")
+    parser.add_argument(
+        "--comparison-function",
+        type=str,
+        choices=["distance", "difference", "partial_distance", "partial_difference"],
+        default="difference")
+    parser.add_argument("--non-equivariant-dim", nargs='*', default=None)
 
     if kw_args:
         # Load the arguments from the keyword arguments passed to the function.
@@ -229,6 +234,12 @@ def main(**kw_args):
         "fullconvgnp",
     }:
         del args.arch
+
+    if args.comparison_function not in ['partial_distance', 'partial_difference']:
+        args.non_equivariant_dim = None
+    if args.dim_x == 1 and args.model in ['rcnp', 'rgnp'] and args.non_equivariant_dim is not None:
+        out.out("Can't use RCNP if data does not require relational encoding")
+        sys.exit(1)
 
     # translational-equivariance function for non-isotropic kernel
     if args.data not in ["eq", "matern"]:
@@ -291,17 +302,12 @@ def main(**kw_args):
     B.set_global_device(device)
     # Maintain an explicit random state through the execution.
 
-    if args.data == "cancer":
-        num_seeds=3
-        repnum = args.seed
-        assert(repnum > 0)
-        this_seeds = np.random.SeedSequence(entropy=11463518354837724398231700962801993226).generate_state(num_seeds * repnum)[-num_seeds:]
-        #print(this_seeds)
-        state = B.create_random_state(torch.float32, seed=int(this_seeds[0]))
-        B.set_random_seed(int(this_seeds[0]))
-    else:
-        state = B.create_random_state(torch.float32, seed=args.seed)
-        B.set_random_seed(args.seed)
+    num_seeds = 3
+    repnum = args.seed
+    assert(repnum > 0)
+    seeds = np.random.SeedSequence(entropy=11463518354837724398231700962801993226).generate_state(num_seeds * repnum)[-num_seeds:]
+    state = B.create_random_state(torch.float32, seed=int(seeds[0]))
+    B.set_random_seed(int(seeds[0]))
 
     # General config.
     config = {
@@ -346,7 +352,7 @@ def main(**kw_args):
             num_tasks_cv=2**6 if args.train_fast else 2**8,
             num_tasks_eval=2**6 if args.evaluate_fast else 2**8,
             device=device,
-            this_seeds=[int(this_seeds[1]), int(this_seeds[2])]
+            this_seeds=[int(seeds[1]), int(seeds[2])]
         )
     else:
         gen_train, gen_cv, gens_eval = exp.data[args.data]["setup"](
@@ -356,6 +362,7 @@ def main(**kw_args):
             num_tasks_cv=2**6 if args.train_fast else 2**12,
             num_tasks_eval=2**6 if args.evaluate_fast else 2**12,
             device=device,
+            seeds=[int(seeds[1]), int(seeds[2])]
         )
 
     # Apply defaults for the number of epochs and the learning rate. The experiment
@@ -395,38 +402,6 @@ def main(**kw_args):
                 likelihood="het",
                 transform=config["transform"],
             )
-        elif args.model == "contextrcnp":
-            model = nps.construct_contextrnp(
-                dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
-                dim_yt=config["dim_y"],
-                dim_embedding=config["dim_embedding"],
-                dim_relational_embedding=config["dim_relational_embeddings"],
-                enc_same=config["enc_same"],
-                num_dec_layers=config["num_layers"],
-                width=config["width"],
-                relational_width=config['relational_width'],
-                num_relational_enc_layers=config['num_relational_layers'],
-                likelihood="het",
-                transform=config["transform"],
-                comparison_function=args.comparison_function
-            )
-        elif args.model == "contextrgnp":
-            model = nps.construct_contextrnp(
-                dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
-                dim_yt=config["dim_y"],
-                dim_embedding=config["dim_embedding"],
-                dim_relational_embedding=config["dim_relational_embeddings"],
-                enc_same=config["enc_same"],
-                num_dec_layers=config["num_layers"],
-                width=config["width"],
-                relational_width=config['relational_width'],
-                num_relational_enc_layers=config['num_relational_layers'],
-                likelihood="lowrank",
-                transform=config["transform"],
-                comparison_function=args.comparison_function
-            )
         elif args.model == "rcnp":
             model = nps.construct_rnp(
                 dim_x=config["dim_x"],
@@ -440,7 +415,8 @@ def main(**kw_args):
                 num_relational_enc_layers=config['num_relational_layers'],
                 likelihood="het",
                 transform=config["transform"],
-                comparison_function=args.comparison_function
+                comparison_function=args.comparison_function,
+                non_equivariant_dim=args.non_equivariant_dim,
             )
         elif args.model == "rgnp":
             model = nps.construct_rnp(
@@ -455,7 +431,42 @@ def main(**kw_args):
                 num_relational_enc_layers=config['num_relational_layers'],
                 likelihood="lowrank",
                 transform=config["transform"],
-                comparison_function=args.comparison_function
+                comparison_function=args.comparison_function,
+                non_equivariant_dim=args.non_equivariant_dim,
+            )
+        elif args.model == "fullrcnp":
+            model = nps.construct_fullrnp(
+                dim_x=config["dim_x"],
+                dim_yc=(1,) * config["dim_y"],
+                dim_yt=config["dim_y"],
+                dim_embedding=config["dim_embedding"],
+                dim_relational_embedding=config["dim_relational_embeddings"],
+                enc_same=config["enc_same"],
+                num_dec_layers=config["num_layers"],
+                width=config["width"],
+                relational_width=config['relational_width'],
+                num_relational_enc_layers=config['num_relational_layers'],
+                likelihood="het",
+                transform=config["transform"],
+                comparison_function=args.comparison_function,
+                non_equivariant_dim=args.non_equivariant_dim,
+            )
+        elif args.model == "fullrgnp":
+            model = nps.construct_fullrnp(
+                dim_x=config["dim_x"],
+                dim_yc=(1,) * config["dim_y"],
+                dim_yt=config["dim_y"],
+                dim_embedding=config["dim_embedding"],
+                dim_relational_embedding=config["dim_relational_embeddings"],
+                enc_same=config["enc_same"],
+                num_dec_layers=config["num_layers"],
+                width=config["width"],
+                relational_width=config['relational_width'],
+                num_relational_enc_layers=config['num_relational_layers'],
+                likelihood="lowrank",
+                transform=config["transform"],
+                comparison_function=args.comparison_function,
+                non_equivariant_dim=args.non_equivariant_dim,
             )
         elif args.model == "gnp":
             model = nps.construct_gnp(
