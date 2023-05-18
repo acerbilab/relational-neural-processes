@@ -10,10 +10,10 @@ from .data import DataGenerator, apply_task
 from ..dist import AbstractDistribution
 from ..dist.uniform import UniformDiscrete, UniformContinuous
 
-__all__ = ["CancerLatentGenerator"]
+__all__ = ["CancerJointGenerator"]
 
 
-class CancerLatentGenerator(DataGenerator):
+class CancerJointGenerator(DataGenerator):
     """Simulations from the .
 
     Args:

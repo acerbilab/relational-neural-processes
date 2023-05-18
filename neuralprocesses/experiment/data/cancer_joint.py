@@ -27,7 +27,7 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
 
     this_seeds = this_seeds or [10, 20]
 
-    gen_train = nps.CancerLatentGenerator(
+    gen_train = nps.CancerJointGenerator(
         torch.float32,
         seed=this_seeds[0],
         dataset="small_train",
@@ -35,7 +35,7 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
         mode="completion",
         device=device
     )
-    gen_cv = lambda: nps.CancerLatentGenerator(
+    gen_cv = lambda: nps.CancerJointGenerator(
         torch.float32,
         seed=this_seeds[1],
         dataset="small_train",
@@ -50,7 +50,7 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
             # the same.
             (
                 "Completion (Simulated)",
-                nps.CancerLatentGenerator(
+                nps.CancerJointGenerator(
                     torch.float32,
                     seed=30,
                     dataset="small_test",
@@ -61,7 +61,7 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
             ),
             (
                 "Forecasting (Simulated)",
-                nps.CancerLatentGenerator(
+                nps.CancerJointGenerator(
                     torch.float32,
                     seed=40,
                     dataset="small_test",
@@ -76,4 +76,4 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
     return gen_train, gen_cv, gens_eval
 
 
-register_data("cancer_latent", setup)
+register_data("cancer_joint", setup)

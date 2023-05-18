@@ -6,3 +6,4 @@ from .temperature import *
 from .util import *
 from .cancer import *
 from .cancer_latent import *
+from .cancer_joint import *
