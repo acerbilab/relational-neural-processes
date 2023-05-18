@@ -63,7 +63,7 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
                     dataset="small_test",
                     obs_type=obs_type,
                     num_tasks=num_tasks_eval,
-                    mode="forecasting",
+                    mode="completion",
                     device=device
                 ),
             ),
