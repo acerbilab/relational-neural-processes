@@ -178,7 +178,7 @@ def main(**kw_args):
         type=str,
         choices=["distance", "difference", "partial_distance", "partial_difference"],
         default="difference")
-    parser.add_argument("--non-equivariant-dim", nargs='*', default=None)
+    parser.add_argument("--non-equivariant-dim", type=lambda s: [int(item) for item in s.split(',')], default=None)
 
     if kw_args:
         # Load the arguments from the keyword arguments passed to the function.
