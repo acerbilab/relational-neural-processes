@@ -9,3 +9,4 @@ from .predprey import *
 from .sawtooth import *
 from .temperature import *
 from .cancer import *
+from .cancer_latent import *
