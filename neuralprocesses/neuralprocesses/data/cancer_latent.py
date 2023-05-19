@@ -124,7 +124,7 @@ class CancerLatentGenerator(DataGenerator):
                 self.state, x1 = self.x_ind.sample(self.state, self.int64, n_trg)
                 self.state, x2 = self.x_ind.sample(self.state, self.int64, n_trg)
 
-                x = B.concat(x1.reshape(1, -1), x2.reshape(1, -1), test_time[b].repeat(x1.shape[0]).reshape(1, -1),self.trajectories1[inds[b]][test_time[b].cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()].reshape(1,-1))  # check these size
+                x = B.concat(x1.reshape(1, -1), x2.reshape(1, -1), test_time[b].repeat(x1.shape[0]).reshape(1, -1),torch.from_numpy(self.trajectories1[inds[b]][test_time[b].cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()].reshape(1,-1)).to(self.device))  # check these size
                 y = self.trajectories2[inds[b]][test_time[b].cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()]
                 target_x[b] = x
                 target_y[b] = torch.from_numpy(y).to(self.device)
@@ -141,7 +141,7 @@ class CancerLatentGenerator(DataGenerator):
 
                 time2 = time1 + test_time[b]  # we sample around the target time
 
-                x = B.concat(x1.reshape(1, -1), x2.reshape(1, -1), time2.reshape(1, -1),self.trajectories1[inds[b]][time2.cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()].reshape(1,-1))
+                x = B.concat(x1.reshape(1, -1), x2.reshape(1, -1), time2.reshape(1, -1),torch.from_numpy(self.trajectories1[inds[b]][time2.cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()].reshape(1,-1)).to(self.device))
                 # print(type(x))
 
                 y = self.trajectories2[inds[b]][time2.cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()]
