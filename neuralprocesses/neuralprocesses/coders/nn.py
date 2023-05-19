@@ -368,19 +368,20 @@ def code(coder: RelationalMLP, xz, z: B.Numeric, x, **kw_args):
     xz = coder(xz, z, x)
     return xz, z
 
-@_dispatch
-def code(coder: RelationalMLP, xz: Parallel, z: Parallel, x, **kw_args):
-    xz = xz[kw_args['select_channel']]
-    z = z[kw_args['select_channel']]
-    xz = coder(xz, z, x)
-    return xz, z
+# this was the 'select' option
+#@_dispatch
+#def code(coder: RelationalMLP, xz: Parallel, z: Parallel, x, **kw_args):
+#    xz = xz[kw_args['select_channel']]
+#    z = z[kw_args['select_channel']]
+#    xz = coder(xz, z, x)
+#    return xz, z
 
-
+# this is the 'concat' option used in final experiments
 # encode with all context sets, need to modify the input dimension of decoder
 @_dispatch
 def code(coder: RelationalMLP, xz: Parallel, z: Parallel, x, **kw_args):
     xz = [coder(xzi, zi, x) for (xzi, zi) in zip(xz, z)]
-    return B.concat(*xz, axis=1), B.concat(*z, axis=2)
+    return B.concat(*xz, axis=1), None
 
 
 @register_module
