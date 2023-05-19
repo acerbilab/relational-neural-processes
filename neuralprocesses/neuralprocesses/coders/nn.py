@@ -187,6 +187,7 @@ class RelationalMLP:
         _, target_set_size, _ = xt.shape
         _, _, out_dim = yc.shape
         if self.relational_encoding_type == "simple":
+            final_set_size = set_size
             if self.comparison_function == "distance":
                 # (batch_size, target_set_size, set_size, 1))
                 dist_x = B.sqrt(B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(-1))
@@ -242,6 +243,7 @@ class RelationalMLP:
                 batch_size, diff_size, filter_size = diff_x.shape
                 x = diff_x.view(batch_size * diff_size, filter_size)
         elif self.relational_encoding_type == "full":
+            final_set_size = set_size * set_size
             if self.comparison_function == "distance":
                 relational_matrix = B.sqrt(B.sum((xc.unsqueeze(2) - xc.unsqueeze(1))**2, axis=-1).unsqueeze(-1))
                 yc_matrix_1 = yc.unsqueeze(2).repeat(1, 1, set_size, 1)
@@ -353,7 +355,7 @@ class RelationalMLP:
 
         encoded_feature_dim = x.shape[-1]
 
-        x = x.view(batch_size, target_set_size, -1, encoded_feature_dim)
+        x = x.view(batch_size, target_set_size, final_set_size, encoded_feature_dim)
         encoded_target_x = x.sum(dim=2)
 
         if self.comparison_function in ["partial_difference", "partial_distance"]:
