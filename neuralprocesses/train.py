@@ -322,8 +322,8 @@ def main(**kw_args):
         "cholesky_retry_factor": 1e6,
         "fix_noise": None,
         "fix_noise_epochs": 3,
-        "width": 256,
-        "relational_width": 256,
+        "width": 256,                                
+        "relational_width": 256,                                
         "dim_relational_embeddings": 256,
         "dim_embedding": 256,
         "enc_same": args.enc_same,
@@ -345,7 +345,7 @@ def main(**kw_args):
     }
 
     # Setup data generators for training and for evaluation.
-    if args.data == "cancer" or args.data=="cancer_latent" or args.data == "cancer_joint":
+    if args.data == "cancer" or args.data=="cancer_latent" or args.data == "cancer_joint" or args.data == "cancer_multi":
         gen_train, gen_cv, gens_eval = exp.data[args.data]["setup"](
             args,
             config,
