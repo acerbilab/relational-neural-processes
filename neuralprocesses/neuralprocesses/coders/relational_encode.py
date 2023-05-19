@@ -12,29 +12,30 @@ __all__ = [
 
 @register_module
 class RelationalEncode:
-    """Replace x with xz and input into coder. Since our RNP needs to modify 'x', but original code function always
-       treat 'x' unchanged. When encode xc we need to replace x with xz, and when encode xt we
-       need to use inputscode to replace the original xz, z"""
-    def __init__(self, coder, encode_input=False, output_index=None):
+    """Encode context or target inputs with a coder that takes as input context inputs,
+    context outputs, and the inputs to be encoded."""
+    def __init__(self, coder, encode_target=False, out_index=None):
         self.coder = coder
-        self.encode_input = encode_input
-        self.output_index = output_index
+        self.encode_target = encode_target
+        self.out_index = out_index
 
 
 @_dispatch
 def code(coder: RelationalEncode, xz, z, x, **kw_args):
-    """Now xz is what we are interested. In det_encoder part, xz is xc we want to encode, so coder is relational_encoder
-       In RepeatForAggregateInputs part, xz is relational encoding for xt,
-       we need to use InputsCoder to replace x with xt, now coder is InputsCoder"""
-
-    if coder.encode_input:  # encode target inputs wrt context
-        if coder.output_index is None:
+    if coder.encode_target:
+        # in encode target mode, encode target inputs x in the context xz and z
+        if coder.out_index is None:
+            # encode wrt all contexts
             x, z = code(coder.coder, xz, z, x, **kw_args)
         else:
-            x, z = code(coder.coder, xz[coder.output_index], z[coder.output_index], x, **kw_args)
+            # encode wrt selected context
+            x, z = code(coder.coder, xz[coder.out_index], z[coder.out_index], x, **kw_args)
+        # return target inputs
         return x, x
-    else:  # encode context wrt context
+    else:
+        # otherwise, encode context inputs xz in the context xz and z
         xz, z = code(coder.coder, xz, z, xz, **kw_args)
+        # return context
         return xz, z
 
 

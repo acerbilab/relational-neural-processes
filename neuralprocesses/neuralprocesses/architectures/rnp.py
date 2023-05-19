@@ -140,13 +140,13 @@ def construct_rnp(
         relational_encoder = construct_relational_mlp(dim_yc[0])
         encoder = nps.Chain(
             nps.RepeatForAggregateInputs(
-                nps.RelationalEncode(relational_encoder, encode_input=True)
+                nps.RelationalEncode(relational_encoder, encode_target=True)
             ),
             nps.DeterministicLikelihood(),
 
         )
     else:
-        # if enc_same=False we need multiple relational encoder
+        # if enc_same=False we need multiple relational encoders
         relational_encoder = [construct_relational_mlp(dim_yci) for dim_yci in dim_yc]
         encoder = nps.Chain(
             nps.RepeatForAggregateInputs(
@@ -154,7 +154,7 @@ def construct_rnp(
                     nps.Copy(len(dim_yc)),
                     nps.Parallel(
                         *(
-                            nps.RelationalEncode(relational_encoder[ii], encode_input=True, output_index=ii)
+                            nps.RelationalEncode(relational_encoder[ii], encode_target=True, out_index=ii)
                             for ii in range(len(dim_yc))
                         )
                     ),
