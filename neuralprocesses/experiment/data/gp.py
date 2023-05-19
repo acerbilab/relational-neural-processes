@@ -29,6 +29,11 @@ def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, 
         config["unet_channels"] = config["unet_channels"][:-1]
     else:
         raise RuntimeError(f"Invalid input dimensionality {args.dim_x}.")
+    # Relational encoder setup
+    if args.dim_x > 3:
+        config["width"] = 128
+        config["relational_width"] = 128
+        config["dim_relational_embeddings"] = 128
 
     # Other settings specific to the GP experiments:
     config["plot"] = {
