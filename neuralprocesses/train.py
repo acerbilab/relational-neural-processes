@@ -345,7 +345,7 @@ def main(**kw_args):
     }
 
     # Setup data generators for training and for evaluation.
-    if args.data == "cancer" or args.data=="cancer_latent" or args.data == "cancer_joint":
+    if args.data == "cancer" or args.data=="cancer_latent" or args.data == "cancer_joint" or args.data == "cancer_multi":
         gen_train, gen_cv, gens_eval = exp.data[args.data]["setup"](
             args,
             config,
