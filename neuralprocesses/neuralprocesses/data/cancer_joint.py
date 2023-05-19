@@ -118,19 +118,19 @@ class CancerJointGenerator(DataGenerator):
                                                               self.batch_size)  # we sample one time, and all the task will be around this time.
 
             # random targets
-            target_x = torch.zeros(self.batch_size, 4, n_trg).to(self.device)
-            target_y = torch.zeros(self.batch_size, 1, n_trg).to(self.device)
+            target_x = torch.zeros(self.batch_size, 3, n_trg).to(self.device)
+            target_y = torch.zeros(self.batch_size, 2, n_trg).to(self.device)
             for b in range(self.batch_size):
                 self.state, x1 = self.x_ind.sample(self.state, self.int64, n_trg)
                 self.state, x2 = self.x_ind.sample(self.state, self.int64, n_trg)
 
-                x = B.concat(x1.reshape(1, -1), x2.reshape(1, -1), test_time[b].repeat(x1.shape[0]).reshape(1, -1),self.trajectories1[inds[b]][test_time[b].cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()].reshape(1,-1))  # check these size
+                x = B.concat(x1.reshape(1, -1), x2.reshape(1, -1), test_time[b].repeat(x1.shape[0]).reshape(1, -1))  # check these size
                 y = self.trajectories2[inds[b]][test_time[b].cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()]
                 target_x[b] = x
                 target_y[b] = torch.from_numpy(y).to(self.device)
             # random context
-            context_x = torch.zeros(self.batch_size, 4, n_ctx).to(self.device)
-            context_y = torch.zeros(self.batch_size, 1, n_ctx).to(self.device)
+            context_x = torch.zeros(self.batch_size, 3, n_ctx).to(self.device)
+            context_y = torch.zeros(self.batch_size, 2, n_ctx).to(self.device)
             # print(type(context_x))
             # print(type(context_y))
 
@@ -141,10 +141,10 @@ class CancerJointGenerator(DataGenerator):
 
                 time2 = time1 + test_time[b]  # we sample around the target time
 
-                x = B.concat(x1.reshape(1, -1), x2.reshape(1, -1), time2.reshape(1, -1),self.trajectories1[inds[b]][time2.cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()].reshape(1,-1))
+                x = B.concat(x1.reshape(1, -1), x2.reshape(1, -1), time2.reshape(1, -1))
                 # print(type(x))
 
-                y = self.trajectories2[inds[b]][time2.cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()]
+                y = self.trajectories1[inds[b]][time2.cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()]
                 # print(type(y))
                 context_x[b] = x
                 context_y[b] = torch.from_numpy(y).to(self.device)
