@@ -136,18 +136,33 @@ def construct_rnp(
             non_equivariant_dim=non_equivariant_dim,
         )
 
-    relational_encoder = construct_relational_mlp(dim_yc[0])
+    if len(dim_yc) < 2 or enc_same:
+        relational_encoder = construct_relational_mlp(dim_yc[0])
+        encoder = nps.Chain(
+            nps.RepeatForAggregateInputs(
+                nps.RelationalEncode(relational_encoder, encode_target=True)
+            ),
+            nps.DeterministicLikelihood(),
 
-    encoder = nps.Chain(
-        nps.RepeatForAggregateInputs(
-            nps.Chain(
-                relational_encoder,  # if enc_same=False we need multiple relational encoder
-                nps.RelationalEncode(nps.InputsCoder()),
-            )
-        ),
-        nps.DeterministicLikelihood(),
-
-    )
+        )
+    else:
+        # if enc_same=False we need multiple relational encoders
+        relational_encoder = [construct_relational_mlp(dim_yci) for dim_yci in dim_yc]
+        encoder = nps.Chain(
+            nps.RepeatForAggregateInputs(
+                nps.Chain(
+                    nps.Copy(len(dim_yc)),
+                    nps.Parallel(
+                        *(
+                            nps.RelationalEncode(relational_encoder[ii], encode_target=True, out_index=ii)
+                            for ii in range(len(dim_yc))
+                        )
+                    ),
+                    nps.ConcatRelational(),
+                ),
+            ),
+            nps.DeterministicLikelihood(),
+        )
 
     if comparison_function in ["partial_difference", "partial_distance"]:
         if non_equivariant_dim is None:

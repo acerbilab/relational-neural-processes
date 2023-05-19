@@ -172,13 +172,14 @@ def main(**kw_args):
         choices=["sane", "cancer", "diff"]
     )
     parser.add_argument("--patch", type=str)
-    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--seed", type=int, default=1)
     parser.add_argument(
         "--comparison-function",
         type=str,
         choices=["distance", "difference", "partial_distance", "partial_difference"],
         default="difference")
     parser.add_argument("--non-equivariant-dim", type=lambda s: [int(item) for item in s.split(',')], default=None)
+    parser.add_argument("--enc-same", action="store_true")
 
     if kw_args:
         # Load the arguments from the keyword arguments passed to the function.
@@ -325,7 +326,7 @@ def main(**kw_args):
         "relational_width": 128 if args.dim_x > 3 else 256,  # 256,
         "dim_relational_embeddings": 128 if args.dim_x > 3 else 256,  # 256
         "dim_embedding": 256,
-        "enc_same": False,
+        "enc_same": args.enc_same,
         "num_heads": 8,
         "num_layers": 6,
         "num_relational_layers": 3,
@@ -617,6 +618,8 @@ def main(**kw_args):
             )
         else:
             raise ValueError(f'Invalid model "{args.model}".')
+
+    #print(model)
 
     # Settings specific for the model:
     if config["fix_noise"] is None:
