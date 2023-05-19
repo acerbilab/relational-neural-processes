@@ -322,9 +322,9 @@ def main(**kw_args):
         "cholesky_retry_factor": 1e6,
         "fix_noise": None,
         "fix_noise_epochs": 3,
-        "width": 256,  # 256
-        "relational_width": 256,  # 256,
-        "dim_relational_embeddings": 256,  # 256
+        "width": 128 if args.dim_x > 3 else 256,  # 256
+        "relational_width": 128 if args.dim_x > 3 else 256,  # 256,
+        "dim_relational_embeddings": 128 if args.dim_x > 3 else 256,  # 256
         "dim_embedding": 256,
         "enc_same": args.enc_same,
         "num_heads": 8,
@@ -416,6 +416,7 @@ def main(**kw_args):
                 num_relational_enc_layers=config['num_relational_layers'],
                 likelihood="het",
                 transform=config["transform"],
+                relational_encoding_type="simple",
                 comparison_function=args.comparison_function,
                 non_equivariant_dim=args.non_equivariant_dim,
             )
@@ -432,6 +433,7 @@ def main(**kw_args):
                 num_relational_enc_layers=config['num_relational_layers'],
                 likelihood="lowrank",
                 transform=config["transform"],
+                relational_encoding_type="simple",
                 comparison_function=args.comparison_function,
                 non_equivariant_dim=args.non_equivariant_dim,
             )
