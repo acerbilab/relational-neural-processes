@@ -352,8 +352,8 @@ class RelationalMLP:
         x = x.view(batch_size, diff_size, self.relational_out_dim)
 
         encoded_feature_dim = x.shape[-1]
-
-        x = x.view(batch_size, target_set_size, -1, encoded_feature_dim)
+        set_size = set_size if self.relational_encoding_type == "simple" else set_size * set_size
+        x = x.view(batch_size, target_set_size, set_size, encoded_feature_dim)
         encoded_target_x = x.sum(dim=2)
 
         if self.comparison_function in ["partial_difference", "partial_distance"]:
