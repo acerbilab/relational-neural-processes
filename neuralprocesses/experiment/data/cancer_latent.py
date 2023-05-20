@@ -8,16 +8,11 @@ __all__ = []
 def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device, this_seeds=None):
     config["default"]["rate"] = 1e-4
     config["default"]["epochs"] = 200
-    config["dim_x"] = 3
+    config["dim_x"] = 4
     config["dim_y"] = 1
 
-    obs_type = config["cancer_obs_type"] or "diff"
-
-    if obs_type in ["sane", "cancer"]:
-        config["transform"] = "softplus"
-    else:
-        config["transform"] = None
-
+    config["transform"] = None
+    
     # Configure the convolutional models:
     config["points_per_unit"] = 4
     config["margin"] = 1
@@ -32,20 +27,18 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
 
     this_seeds = this_seeds or [10, 20]
 
-    gen_train = nps.CancerGenerator(
+    gen_train = nps.CancerLatentGenerator(
         torch.float32,
         seed=this_seeds[0],
         dataset="small_train",
-        obs_type=obs_type,
         num_tasks=num_tasks_train,
         mode="completion",
         device=device
     )
-    gen_cv = lambda: nps.CancerGenerator(
+    gen_cv = lambda: nps.CancerLatentGenerator(
         torch.float32,
         seed=this_seeds[1],
         dataset="small_train",
-        obs_type=obs_type,
         num_tasks=num_tasks_cv,
         mode="completion",
         device=device
@@ -57,23 +50,21 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
             # the same.
             (
                 "Completion (Simulated)",
-                nps.CancerGenerator(
+                nps.CancerLatentGenerator(
                     torch.float32,
                     seed=30,
                     dataset="small_test",
-                    obs_type=obs_type,
                     num_tasks=num_tasks_eval,
-                    mode="completion",
+                    mode="forecasting",
                     device=device
                 ),
             ),
             (
                 "Forecasting (Simulated)",
-                nps.CancerGenerator(
+                nps.CancerLatentGenerator(
                     torch.float32,
                     seed=40,
                     dataset="small_test",
-                    obs_type=obs_type,
                     num_tasks=num_tasks_eval,
                     mode="forecasting",
                     device=device
@@ -85,4 +76,4 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
     return gen_train, gen_cv, gens_eval
 
 
-register_data("cancer", setup)
+register_data("cancer_latent", setup)

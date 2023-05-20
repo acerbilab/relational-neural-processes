@@ -3,5 +3,5 @@ from .climate import *
 from .convgnp import *
 from .fullconvgnp import *
 from .gnp import *
-from .contextrnp import *
+from .fullrnp import *
 from .rnp import *

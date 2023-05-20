@@ -6,7 +6,7 @@ from .util import register_data
 __all__ = []
 
 
-def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device):
+def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device, seeds=None):
     config["default"]["rate"] = 1e-4
     config["default"]["epochs"] = 200
     config["dim_x"] = 1
@@ -25,9 +25,10 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
     # Other settings specific to the predator-prey experiments:
     config["plot"] = {1: {"range": (0, 100), "axvline": []}}
 
+    seeds = seeds or [10, 20]
     gen_train = nps.PredPreyGenerator(
         torch.float32,
-        seed=10,
+        seed=seeds[0],
         batch_size=args.batch_size,
         num_tasks=num_tasks_train,
         mode="random",
@@ -35,7 +36,7 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
     )
     gen_cv = lambda: nps.PredPreyGenerator(
         torch.float32,
-        seed=20,
+        seed=seeds[1],
         batch_size=args.batch_size,
         num_tasks=num_tasks_cv,
         mode="random",

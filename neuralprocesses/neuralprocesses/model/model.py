@@ -8,7 +8,7 @@ from ..augment import AugmentedInput
 from ..coding import code
 from ..mask import Masked
 from ..util import register_module
-from .util import compress_contexts, sample, canonical_ordering, sort_batched_data
+from .util import compress_contexts, sample
 
 __all__ = ["Model"]
 
@@ -41,7 +41,6 @@ class Model:
         num_samples=None,
         aux_t=None,
         dtype_enc_sample=None,
-        canonical_rule=None,
         **kw_args,
     ):
         """Run the model.
@@ -70,13 +69,6 @@ class Model:
         enc_kw_args = dict(kw_args)
         if "noiseless" in enc_kw_args:
             del enc_kw_args["noiseless"]
-
-        # canonical ordering
-        if canonical_rule == 'sum':
-            method = B.sum
-            order = canonical_ordering(method, xc)
-            xc = sort_batched_data(order, xc)
-            xt = sort_batched_data(order, xt)
 
         xz, pz = code(self.encoder, xc, yc, xt, root=True, **enc_kw_args)
 

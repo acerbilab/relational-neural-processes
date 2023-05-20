@@ -10,10 +10,10 @@ from .data import DataGenerator, apply_task
 from ..dist import AbstractDistribution
 from ..dist.uniform import UniformDiscrete, UniformContinuous
 
-__all__ = ["CancerGenerator"]
+__all__ = ["CancerLatentGenerator"]
 
 
-class CancerGenerator(DataGenerator):
+class CancerLatentGenerator(DataGenerator):
     """Simulations from the .
 
     Args:
@@ -53,7 +53,6 @@ class CancerGenerator(DataGenerator):
             dtype,
             seed=0,
             dataset="small",
-            obs_type="sane",
             num_tasks=10 ** 3,
             batch_size=16,
             num_context=UniformDiscrete(50, 200),
@@ -91,16 +90,10 @@ class CancerGenerator(DataGenerator):
 
         # choose observation type and reshape and scale
         max_value = 10
-        if obs_type == "sane":
-            self.trajectories = [tr[0].reshape(ntime, nx, nx) / max_value for tr in trajectories_data]
-        elif obs_type == "cancer":
-            self.trajectories = [tr[1].reshape(ntime, nx, nx) / max_value for tr in trajectories_data]
-        elif obs_type == "diff":
-            self.trajectories = [(tr[0] - tr[1]).reshape(ntime, nx, nx) / max_value for tr in trajectories_data]
-        else:
-            raise ValueError(f'Bad obs_type "(obs_type)".')
+        self.trajectories1=[tr[2].reshape(ntime, nx, nx) / max_value for tr in trajectories_data]
+        self.trajectories2=[tr[1].reshape(ntime, nx, nx) / max_value for tr in trajectories_data]
 
-        nsamples = len(self.trajectories)
+        nsamples = len(self.trajectories1)
         self.trajectories_ind = UniformDiscrete(0, nsamples - 1)
         self.x_ind = UniformDiscrete(1, nx - 1)
         if self.mode == "forecasting":
@@ -125,18 +118,18 @@ class CancerGenerator(DataGenerator):
                                                               self.batch_size)  # we sample one time, and all the task will be around this time.
 
             # random targets
-            target_x = torch.zeros(self.batch_size, 3, n_trg).to(self.device)
+            target_x = torch.zeros(self.batch_size, 4, n_trg).to(self.device)
             target_y = torch.zeros(self.batch_size, 1, n_trg).to(self.device)
             for b in range(self.batch_size):
                 self.state, x1 = self.x_ind.sample(self.state, self.int64, n_trg)
                 self.state, x2 = self.x_ind.sample(self.state, self.int64, n_trg)
 
-                x = B.concat(x1.reshape(1, -1), x2.reshape(1, -1), test_time[b].repeat(x1.shape[0]).reshape(1, -1))  # check these size
-                y = self.trajectories[inds[b]][test_time[b].cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()]
+                x = B.concat(x1.reshape(1, -1), x2.reshape(1, -1), test_time[b].repeat(x1.shape[0]).reshape(1, -1),torch.from_numpy(self.trajectories1[inds[b]][test_time[b].cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()].reshape(1,-1)).to(self.device))  # check these size
+                y = self.trajectories2[inds[b]][test_time[b].cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()]
                 target_x[b] = x
                 target_y[b] = torch.from_numpy(y).to(self.device)
             # random context
-            context_x = torch.zeros(self.batch_size, 3, n_ctx).to(self.device)
+            context_x = torch.zeros(self.batch_size, 4, n_ctx).to(self.device)
             context_y = torch.zeros(self.batch_size, 1, n_ctx).to(self.device)
             # print(type(context_x))
             # print(type(context_y))
@@ -148,10 +141,10 @@ class CancerGenerator(DataGenerator):
 
                 time2 = time1 + test_time[b]  # we sample around the target time
 
-                x = B.concat(x1.reshape(1, -1), x2.reshape(1, -1), time2.reshape(1, -1))
+                x = B.concat(x1.reshape(1, -1), x2.reshape(1, -1), time2.reshape(1, -1),torch.from_numpy(self.trajectories1[inds[b]][time2.cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()].reshape(1,-1)).to(self.device))
                 # print(type(x))
 
-                y = self.trajectories[inds[b]][time2.cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()]
+                y = self.trajectories2[inds[b]][time2.cpu().detach().numpy(), x1.cpu().detach().numpy(), x2.cpu().detach().numpy()]
                 # print(type(y))
                 context_x[b] = x
                 context_y[b] = torch.from_numpy(y).to(self.device)

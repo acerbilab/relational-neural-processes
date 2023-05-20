@@ -69,15 +69,17 @@ def eval(state, model, objective, gen):
 
         # Report numbers.
         vals = B.concat(*vals)
-        kl = B.concat(*kls)
-        kl_diag = B.concat(*kls_diag)
         out.kv("Loglik (V)", exp.with_err(vals, and_lower=True))
         if kls:
+            kl = B.concat(*kls)
             out.kv("KL (full)", exp.with_err(B.concat(*kls), and_upper=True))
         if kls_diag:
+            kl_diag = B.concat(*kls_diag)
             out.kv("KL (diag)", exp.with_err(B.concat(*kls_diag), and_upper=True))
-
-        return state, B.mean(vals), B.mean(kl), B.mean(kl_diag)
+        if kls:
+            return state, B.mean(vals), B.mean(kl), B.mean(kl_diag)
+        else:
+            return state, B.mean(vals), 0, 0
 
 
 def main(**kw_args):
@@ -98,8 +100,8 @@ def main(**kw_args):
         choices=[
             "rcnp",
             "rgnp",
-            "contextrcnp",
-            "contextrgnp",
+            "fullrcnp",
+            "fullrgnp",
             "cnp",
             "gnp",
             "np",
@@ -166,10 +168,19 @@ def main(**kw_args):
         type=str,
         choices=["random", "interpolation", "forecasting", "reconstruction"],
     )
+    parser.add_argument(
+        "--cancer-obs-type",
+        type=str,
+        choices=["sane", "cancer", "diff"]
+    )
     parser.add_argument("--patch", type=str)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--canonical-rule", type=str, choices=[None, "sum"], default=None)
-    parser.add_argument("--comparison-function", type=str, choices=["euclidean", "difference"], default="difference")
+    parser.add_argument(
+        "--comparison-function",
+        type=str,
+        choices=["distance", "difference", "partial_distance", "partial_difference"],
+        default="difference")
+    parser.add_argument("--non-equivariant-dim", type=lambda s: [int(item) for item in s.split(',')], default=None)
 
     if kw_args:
         # Load the arguments from the keyword arguments passed to the function.
@@ -206,7 +217,7 @@ def main(**kw_args):
                     for k in list(d["weights"].keys()):
                         if k.startswith(base_from):
                             applied_patch = True
-                            tail = k[len(base_from) :]
+                            tail = k[len(base_from):]
                             d["weights"][base_to + tail] = d["weights"][k]
                             del d["weights"][k]
 
@@ -226,12 +237,14 @@ def main(**kw_args):
     }:
         del args.arch
 
-    # no need to sort when dim_x = 1
-    if args.dim_x == 1:
-        args.canonical_rule = None
+    if args.comparison_function not in ['partial_distance', 'partial_difference']:
+        args.non_equivariant_dim = None
+    if args.dim_x == 1 and args.model in ['rcnp', 'rgnp'] and args.non_equivariant_dim is not None:
+        out.out("Can't use RCNP if data does not require relational encoding")
+        sys.exit(1)
 
     # translational-equivariance function for non-isotropic kernel
-    if args.data not in ["eq", "matern"]:  # TODO: add more isotropic functions here
+    if args.data not in ["eq", "matern"]:
         args.comparison_function = "difference"
 
     # Remove the dimensionality specification if the experiment doesn't need it.
@@ -259,6 +272,7 @@ def main(**kw_args):
 
     data_dir = args.data if args.mean_diff is None else f"{args.data}-{args.mean_diff}"
     data_dir = data_dir if args.eeg_mode is None else f"{args.data}-{args.eeg_mode}"
+    data_dir = data_dir if args.cancer_obs_type is None else f"{args.data}-{args.cancer_obs_type}"
 
     # Setup script.
     if not observe:
@@ -271,7 +285,6 @@ def main(**kw_args):
         args.model,
         *((args.arch,) if hasattr(args, "arch") else ()),
         args.objective,
-        # "none" if args.canonical_rule is None else str(args.canonical_rule),
         str(args.seed),
         log=f"log{suffix}.txt",
         diff=f"diff{suffix}.txt",
@@ -290,8 +303,14 @@ def main(**kw_args):
 
     B.set_global_device(device)
     # Maintain an explicit random state through the execution.
-    state = B.create_random_state(torch.float32, seed=args.seed)
-    B.set_random_seed(args.seed)
+
+    num_seeds = 3
+    repnum = args.seed
+    assert (repnum > 0)
+    seeds = np.random.SeedSequence(entropy=11463518354837724398231700962801993226).generate_state(num_seeds * repnum)[
+            -num_seeds:]
+    state = B.create_random_state(torch.float32, seed=int(seeds[0]))
+    B.set_random_seed(int(seeds[0]))
 
     # General config.
     config = {
@@ -305,9 +324,9 @@ def main(**kw_args):
         "cholesky_retry_factor": 1e6,
         "fix_noise": None,
         "fix_noise_epochs": 3,
-        "width": 256,
-        "relational_width": 256,
-        "dim_relational_embeddings": 256,
+        "width": 128 if args.dim_x > 3 else 256,  # 256
+        "relational_width": 128 if args.dim_x > 3 else 256,  # 256,
+        "dim_relational_embeddings": 128 if args.dim_x > 3 else 256,  # 256
         "dim_embedding": 256,
         "enc_same": False,
         "num_heads": 8,
@@ -324,17 +343,30 @@ def main(**kw_args):
         # the CNN architecture. We therefore set it to 64.
         "num_basis_functions": 64,
         "eeg_mode": args.eeg_mode,
+        "cancer_obs_type": args.cancer_obs_type,
     }
 
     # Setup data generators for training and for evaluation.
-    gen_train, gen_cv, gens_eval = exp.data[args.data]["setup"](
-        args,
-        config,
-        num_tasks_train=2**6 if args.train_fast else 2**14,
-        num_tasks_cv=2**6 if args.train_fast else 2**12,
-        num_tasks_eval=2**6 if args.evaluate_fast else 2**12,
-        device=device,
-    )
+    if args.data == "cancer":
+        gen_train, gen_cv, gens_eval = exp.data[args.data]["setup"](
+            args,
+            config,
+            num_tasks_train=2 ** 6 if args.train_fast else 2 ** 10,
+            num_tasks_cv=2 ** 6 if args.train_fast else 2 ** 8,
+            num_tasks_eval=2 ** 6 if args.evaluate_fast else 2 ** 8,
+            device=device,
+            this_seeds=[int(seeds[1]), int(seeds[2])]
+        )
+    else:
+        gen_train, gen_cv, gens_eval = exp.data[args.data]["setup"](
+            args,
+            config,
+            num_tasks_train=2 ** 6 if args.train_fast else 2 ** 14,
+            num_tasks_cv=2 ** 6 if args.train_fast else 2 ** 12,
+            num_tasks_eval=2 ** 6 if args.evaluate_fast else 2 ** 12,
+            device=device,
+            seeds=[int(seeds[1]), int(seeds[2])]
+        )
 
     # Apply defaults for the number of epochs and the learning rate. The experiment
     # is allowed to adjust these.
@@ -373,38 +405,6 @@ def main(**kw_args):
                 likelihood="het",
                 transform=config["transform"],
             )
-        elif args.model == "contextrcnp":
-            model = nps.construct_contextrnp(
-                dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
-                dim_yt=config["dim_y"],
-                dim_embedding=config["dim_embedding"],
-                dim_relational_embedding=config["dim_relational_embeddings"],
-                enc_same=config["enc_same"],
-                num_dec_layers=config["num_layers"],
-                width=config["width"],
-                relational_width=config['relational_width'],
-                num_relational_enc_layers=config['num_relational_layers'],
-                likelihood="het",
-                transform=config["transform"],
-                comparison_function=args.comparison_function
-            )
-        elif args.model == "contextrgnp":
-            model = nps.construct_contextrnp(
-                dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
-                dim_yt=config["dim_y"],
-                dim_embedding=config["dim_embedding"],
-                dim_relational_embedding=config["dim_relational_embeddings"],
-                enc_same=config["enc_same"],
-                num_dec_layers=config["num_layers"],
-                width=config["width"],
-                relational_width=config['relational_width'],
-                num_relational_enc_layers=config['num_relational_layers'],
-                likelihood="lowrank",
-                transform=config["transform"],
-                comparison_function=args.comparison_function
-            )
         elif args.model == "rcnp":
             model = nps.construct_rnp(
                 dim_x=config["dim_x"],
@@ -418,7 +418,8 @@ def main(**kw_args):
                 num_relational_enc_layers=config['num_relational_layers'],
                 likelihood="het",
                 transform=config["transform"],
-                comparison_function=args.comparison_function
+                comparison_function=args.comparison_function,
+                non_equivariant_dim=args.non_equivariant_dim,
             )
         elif args.model == "rgnp":
             model = nps.construct_rnp(
@@ -433,7 +434,42 @@ def main(**kw_args):
                 num_relational_enc_layers=config['num_relational_layers'],
                 likelihood="lowrank",
                 transform=config["transform"],
-                comparison_function=args.comparison_function
+                comparison_function=args.comparison_function,
+                non_equivariant_dim=args.non_equivariant_dim,
+            )
+        elif args.model == "fullrcnp":
+            model = nps.construct_fullrnp(
+                dim_x=config["dim_x"],
+                dim_yc=(1,) * config["dim_y"],
+                dim_yt=config["dim_y"],
+                dim_embedding=config["dim_embedding"],
+                dim_relational_embedding=config["dim_relational_embeddings"],
+                enc_same=config["enc_same"],
+                num_dec_layers=config["num_layers"],
+                width=config["width"],
+                relational_width=config['relational_width'],
+                num_relational_enc_layers=config['num_relational_layers'],
+                likelihood="het",
+                transform=config["transform"],
+                comparison_function=args.comparison_function,
+                non_equivariant_dim=args.non_equivariant_dim,
+            )
+        elif args.model == "fullrgnp":
+            model = nps.construct_fullrnp(
+                dim_x=config["dim_x"],
+                dim_yc=(1,) * config["dim_y"],
+                dim_yt=config["dim_y"],
+                dim_embedding=config["dim_embedding"],
+                dim_relational_embedding=config["dim_relational_embeddings"],
+                enc_same=config["enc_same"],
+                num_dec_layers=config["num_layers"],
+                width=config["width"],
+                relational_width=config['relational_width'],
+                num_relational_enc_layers=config['num_relational_layers'],
+                likelihood="lowrank",
+                transform=config["transform"],
+                comparison_function=args.comparison_function,
+                non_equivariant_dim=args.non_equivariant_dim,
             )
         elif args.model == "gnp":
             model = nps.construct_gnp(
@@ -543,9 +579,9 @@ def main(**kw_args):
                 # $\sqrt(2)$. This keeps the runtime in check and reduces the parameters
                 # of the ConvNP to the number of parameters of the ConvCNP.
                 config["unet_channels"] = tuple(
-                    int(c / 2**0.5) for c in config["unet_channels"]
+                    int(c / 2 ** 0.5) for c in config["unet_channels"]
                 )
-                config["dws_channels"] = int(config["dws_channels"] / 2**0.5)
+                config["dws_channels"] = int(config["dws_channels"] / 2 ** 0.5)
             model = nps.construct_convgnp(
                 points_per_unit=config["points_per_unit"],
                 dim_x=config["dim_x"],
@@ -617,7 +653,6 @@ def main(**kw_args):
                     num_samples=args.evaluate_num_samples,
                     batch_size=args.evaluate_batch_size,
                     normalise=not args.unnormalised,
-                    canonical_rule=args.canonical_rule,
                 ),
             )
         ]
@@ -680,7 +715,6 @@ def main(**kw_args):
             #         gen,
             #         path=wd.file(f"evaluate-{i + 1:03d}.pdf"),
             #         config=config,
-            #         canonical_rule=None
             #     )
 
             # For every objective and evaluation generator, do the evaluation.
@@ -726,7 +760,7 @@ def main(**kw_args):
 
         # Sleep for sixty seconds before exiting.
         out.out("Finished evaluation. Sleeping for a minute before exiting.")
-        time.sleep(60)
+        # time.sleep(60)
     else:
         exit()
 
