@@ -1,9 +1,11 @@
-import lab as B
-import torch
-import botorch as bth
+from functools import partial
 
-from config import config
+import botorch as bth
+import experiment as exp
+import lab as B
 import neuralprocesses.torch as nps
+import torch
+import torch as th
 
 
 def train_epoch(
@@ -61,18 +63,11 @@ def eval(state, model, objective, gen, device):
 
         # Report numbers.
         vals = B.concat(*vals)
-        # out.kv("Loglik (VV)", exp.with_err(vals, and_lower=True))
-        # if kls:
-        #     out.kv("KL (full)", exp.with_err(B.concat(*kls), and_upper=True))
-        # if kls_diag:
-        #     out.kv("KL (diag)", exp.with_err(B.concat(*kls_diag), and_upper=True))
-
-        # objective doesn't return pred_y, we can't plot the data
 
         return state, vals.mean(), B.mean(vals) - 1.96 * B.std(vals) / B.sqrt(len(vals))
 
 
-def get_model(model_name, args, device):
+def get_model(model_name, config, args, device):
     if model_name == "cnp":
         model = nps.construct_gnp(
             dim_x=config["dim_x"],
@@ -84,38 +79,6 @@ def get_model(model_name, args, device):
             width=config["width"],
             likelihood="het",
             transform=config["transform"],
-        )
-    elif model_name == "contextrcnp":
-        model = nps.construct_contextrnp(
-            dim_x=config["dim_x"],
-            dim_yc=(1,) * config["dim_y"],
-            dim_yt=config["dim_y"],
-            dim_embedding=config["dim_embedding"],
-            dim_relational_embedding=config["dim_relational_embeddings"],
-            enc_same=config["enc_same"],
-            num_dec_layers=config["num_layers"],
-            width=config["width"],
-            relational_width=config["relational_width"],
-            num_relational_enc_layers=config["num_relational_layers"],
-            likelihood="het",
-            transform=config["transform"],
-            comparison_function=args.comparison_function,
-        )
-    elif model_name == "contextrgnp":
-        model = nps.construct_contextrnp(
-            dim_x=config["dim_x"],
-            dim_yc=(1,) * config["dim_y"],
-            dim_yt=config["dim_y"],
-            dim_embedding=config["dim_embedding"],
-            dim_relational_embedding=config["dim_relational_embeddings"],
-            enc_same=config["enc_same"],
-            num_dec_layers=config["num_layers"],
-            width=config["width"],
-            relational_width=config["relational_width"],
-            num_relational_enc_layers=config["num_relational_layers"],
-            likelihood="lowrank",
-            transform=config["transform"],
-            comparison_function=args.comparison_function,
         )
     elif model_name == "rcnp":
         model = nps.construct_rnp(
@@ -130,7 +93,9 @@ def get_model(model_name, args, device):
             num_relational_enc_layers=config["num_relational_layers"],
             likelihood="het",
             transform=config["transform"],
+            relational_encoding_type="simple",
             comparison_function=args.comparison_function,
+            non_equivariant_dim=args.non_equivariant_dim,
         )
     elif model_name == "rgnp":
         model = nps.construct_rnp(
@@ -145,7 +110,43 @@ def get_model(model_name, args, device):
             num_relational_enc_layers=config["num_relational_layers"],
             likelihood="lowrank",
             transform=config["transform"],
+            relational_encoding_type="simple",
             comparison_function=args.comparison_function,
+            non_equivariant_dim=args.non_equivariant_dim,
+        )
+    elif model_name == "fullrcnp":
+        model = nps.construct_fullrnp(
+            dim_x=config["dim_x"],
+            dim_yc=(1,) * config["dim_y"],
+            dim_yt=config["dim_y"],
+            dim_embedding=config["dim_embedding"],
+            dim_relational_embedding=config["dim_relational_embeddings"],
+            enc_same=config["enc_same"],
+            num_dec_layers=config["num_layers"],
+            width=config["width"],
+            relational_width=config["relational_width"],
+            num_relational_enc_layers=config["num_relational_layers"],
+            likelihood="het",
+            transform=config["transform"],
+            comparison_function=args.comparison_function,
+            non_equivariant_dim=args.non_equivariant_dim,
+        )
+    elif model_name == "fullrgnp":
+        model = nps.construct_fullrnp(
+            dim_x=config["dim_x"],
+            dim_yc=(1,) * config["dim_y"],
+            dim_yt=config["dim_y"],
+            dim_embedding=config["dim_embedding"],
+            dim_relational_embedding=config["dim_relational_embeddings"],
+            enc_same=config["enc_same"],
+            num_dec_layers=config["num_layers"],
+            width=config["width"],
+            relational_width=config["relational_width"],
+            num_relational_enc_layers=config["num_relational_layers"],
+            likelihood="lowrank",
+            transform=config["transform"],
+            comparison_function=args.comparison_function,
+            non_equivariant_dim=args.non_equivariant_dim,
         )
     elif model_name == "gnp":
         model = nps.construct_gnp(
@@ -214,6 +215,84 @@ def get_model(model_name, args, device):
             dim_lv=config["dim_embedding"],
             transform=config["transform"],
         )
+    elif model_name == "convcnp":
+        model = nps.construct_convgnp(
+            points_per_unit=config["points_per_unit"],
+            dim_x=config["dim_x"],
+            dim_yc=(1,) * config["dim_y"],
+            dim_yt=config["dim_y"],
+            likelihood="het",
+            conv_arch=args.arch,
+            unet_channels=config["unet_channels"],
+            unet_strides=config["unet_strides"],
+            conv_channels=config["conv_channels"],
+            conv_layers=config["num_layers"],
+            conv_receptive_field=config["conv_receptive_field"],
+            margin=config["margin"],
+            encoder_scales=config["encoder_scales"],
+            transform=config["transform"],
+        )
+    elif model_name == "convgnp":
+        model = nps.construct_convgnp(
+            points_per_unit=config["points_per_unit"],
+            dim_x=config["dim_x"],
+            dim_yc=(1,) * config["dim_y"],
+            dim_yt=config["dim_y"],
+            likelihood="lowrank",
+            conv_arch=args.arch,
+            unet_channels=config["unet_channels"],
+            unet_strides=config["unet_strides"],
+            conv_channels=config["conv_channels"],
+            conv_layers=config["num_layers"],
+            conv_receptive_field=config["conv_receptive_field"],
+            num_basis_functions=config["num_basis_functions"],
+            margin=config["margin"],
+            encoder_scales=config["encoder_scales"],
+            transform=config["transform"],
+        )
+    elif model_name == "convnp":
+        if config["dim_x"] == 2:
+            # Reduce the number of channels in the conv. architectures by a factor
+            # $\sqrt(2)$. This keeps the runtime in check and reduces the parameters
+            # of the ConvNP to the number of parameters of the ConvCNP.
+            config["unet_channels"] = tuple(
+                int(c / 2**0.5) for c in config["unet_channels"]
+            )
+            config["dws_channels"] = int(config["dws_channels"] / 2**0.5)
+        model = nps.construct_convgnp(
+            points_per_unit=config["points_per_unit"],
+            dim_x=config["dim_x"],
+            dim_yc=(1,) * config["dim_y"],
+            dim_yt=config["dim_y"],
+            likelihood="het",
+            conv_arch=args.arch,
+            unet_channels=config["unet_channels"],
+            unet_strides=config["unet_strides"],
+            conv_channels=config["conv_channels"],
+            conv_layers=config["num_layers"],
+            conv_receptive_field=config["conv_receptive_field"],
+            dim_lv=16,
+            margin=config["margin"],
+            encoder_scales=config["encoder_scales"],
+            transform=config["transform"],
+        )
+    elif model_name == "fullconvgnp":
+        model = nps.construct_fullconvgnp(
+            points_per_unit=config["points_per_unit"],
+            dim_x=config["dim_x"],
+            dim_yc=(1,) * config["dim_y"],
+            dim_yt=config["dim_y"],
+            conv_arch=args.arch,
+            unet_channels=config["unet_channels"],
+            unet_strides=config["unet_strides"],
+            conv_channels=config["conv_channels"],
+            conv_layers=config["num_layers"],
+            conv_receptive_field=config["conv_receptive_field"],
+            kernel_factor=config["fullconvgnp_kernel_factor"],
+            margin=config["margin"],
+            encoder_scales=config["encoder_scales"],
+            transform=config["transform"],
+        )
     else:
         raise ValueError(f'Invalid model "{model_name}".')
 
@@ -246,3 +325,30 @@ def get_target(target_name):
         raise NotImplementedError()
 
     return target, data_set_dims[target_name], tar_min
+
+
+def get_generators(args, config, seeds):
+    # gen_train, gen_cv, gens_eval
+    return exp.data[args.data]["setup"](
+        args,
+        config,
+        num_tasks_train=2**6 if args.train_fast else 2**14,
+        num_tasks_cv=2**6 if args.train_fast else 2**12,
+        num_tasks_eval=2**6 if args.evaluate_fast else 2**12,
+        seeds=[int(seeds[1]), int(seeds[2])],
+        device="cuda" if th.cuda.is_available() else "cpu",
+    )
+
+
+def get_objectives(args):
+    objective = partial(
+        nps.loglik,
+        num_samples=args.num_samples,
+        normalise=not args.unnormalised,
+    )
+    objective_cv = partial(
+        nps.loglik,
+        num_samples=args.num_samples,
+        normalise=not args.unnormalised,
+    )
+    return objective, objective_cv

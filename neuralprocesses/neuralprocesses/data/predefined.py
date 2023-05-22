@@ -2,7 +2,7 @@ import lab as B
 from stheno import EQ, Matern52
 
 from .gp import GPGenerator
-from .gpsample import GPGenerator
+from .gpsample import GPGeneratorSample
 from .mixgp import MixtureGPGenerator
 from .mixture import MixtureGenerator
 from .sawtooth import SawtoothGenerator
@@ -65,9 +65,15 @@ def construct_predefined_gens(
         "eq": EQ().stretch(factor * 1),  # EQ().stretch(factor * 0.25),
         "matern": Matern52().stretch(factor * 1),
         "weakly-periodic": (
-            EQ().stretch(factor * 2) * EQ().stretch(factor * 4).periodic(factor * 1)  # EQ().stretch(factor * 0.5) * EQ().stretch(factor).periodic(factor * 0.25)
+            EQ().stretch(factor * 2)
+            * EQ()
+            .stretch(factor * 4)
+            .periodic(
+                factor * 1
+            )  # EQ().stretch(factor * 0.5) * EQ().stretch(factor).periodic(factor * 0.25)
         ),
     }
+
     gens = {
         name: GPGenerator(
             dtype,
@@ -82,20 +88,25 @@ def construct_predefined_gens(
         )
         for name, kernel in kernels.items()
     }
-
-    # NOTE: Temporary solution for our hyperparameter learning
-    gens["meta"] = GPGenerator(
-        dtype,
-        seed=seed,
-        noise=0.05,
-        kernel=None,
-        num_context=UniformDiscrete(1, 30 * dim_x),
-        num_target=UniformDiscrete(50 * dim_x, 50 * dim_x),
-        pred_logpdf=pred_logpdf,
-        pred_logpdf_diag=pred_logpdf_diag,
-        **config,
-    )
-
+    gens = gens | {
+        name: GPGeneratorSample(
+            dtype,
+            seed=seed,
+            noise=1e-8,
+            kernel_struct=kernel,
+            num_context=UniformDiscrete(1, 30 * dim_x),
+            num_target=UniformDiscrete(50 * dim_x, 50 * dim_x),
+            pred_logpdf=pred_logpdf,
+            pred_logpdf_diag=pred_logpdf_diag,
+            **config,
+        )
+        for name, kernel in [
+            ("bo_fixed", "fixed"),
+            ("bo_matern", "matern"),
+            ("bo_single", "single"),
+            ("bo_sumprod", "sumprod"),
+        ]
+    }
     # Previously, the maximum number of context points was `75 * dim_x`. However, if
     # `dim_x == 1`, then this is too high. We therefore change that case, and keep all
     # other cases the same.

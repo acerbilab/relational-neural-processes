@@ -1,10 +1,9 @@
 from functools import partial
 
+import neuralprocesses.torch as nps
 import torch
 
-import neuralprocesses.torch as nps
 from .util import register_data
-import numpy as np
 
 __all__ = []
 
@@ -119,7 +118,10 @@ names = [
     "mix-weakly-periodic",
     "sawtooth",
     "mixture",
-    "hyper",
+    "bo_fixed",
+    "bo_matern",
+    "bo_single",
+    "bo_sumprod",
 ]
 
 for name in names:

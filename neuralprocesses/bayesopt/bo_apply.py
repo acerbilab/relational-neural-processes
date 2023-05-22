@@ -14,7 +14,7 @@ from botorch.utils import standardize
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from tqdm import tqdm
 
-from config import PARAM, config, args
+from config import get_args, get_config
 from utils import get_target, get_model
 
 
@@ -184,14 +184,13 @@ def baseline_optim(init_x, init_y, n_steps, bound, target):
     return optima
 
 
-def rnp_optim(model, init_x, init_y, n_steps, target):
+def model_optim(model, init_x, init_y, n_steps, target):
     optima = th.zeros(n_steps)
 
     train_X = th.clone(init_x)  # .type(th.double)
     train_Y = th.clone(init_y)  # .type(th.double)
     optima[0] = train_Y.min()
     for step in tqdm(range(1, n_steps)):
-        tqdm.write(f"## {step}/{n_steps}")
         candidate = rnp_get_candidate_cma(model, train_X, train_Y)
 
         train_X = th.cat((train_X, candidate))
@@ -222,68 +221,79 @@ def rnp_get_candidate_rand(model, train_X, train_Y):
 def visualize(tar_min, methods, name="tmp"):
     plt.axhline(tar_min, color="black", ls="dashed", alpha=0.8)
     for i, method in enumerate(methods):
-        for mm in method[0]:
+        for mm in method[1]:
             plt.plot(mm, color=sns.color_palette()[i], alpha=0.3)
         plt.plot(
-            th.stack(method[0]).mean(0),
+            th.stack(method[1]).mean(0),
             color=sns.color_palette()[i],
-            label=method[1],
+            label=method[0],
         )
 
         plt.legend()
         sns.despine()
         plt.title(f"{name}")
-    plt.show()
-    # plt.savefig(f"{name}.png")
-    # plt.close()
+    # plt.show()
+    plt.savefig(f"results/{name}.png")
+    plt.close()
 
 
 @click.command()
 @click.option("--vis", is_flag=True)
 @click.option("--n_rep", default=1)
 @click.option("--n_steps", default=50)
-@click.option("--model_name", default="rcnp")
+@click.option("--exp", default="bo_fixed")
+@click.option("--run", default="1")
+@click.option("--target_name", default="hartmann3d")
+@click.option("--load_path", default="../results/BO")
 @click.option("--verbose", is_flag=True)
-def main(vis, n_rep, n_steps, model_name, verbose):
-    target_name = "hartmann3d"
+def main(vis, n_rep, n_steps, load_path, target_name, exp, run, verbose):
     target, (dim_x, (min_x, max_x)), tar_min = get_target(target_name)
+
+    config = get_config(dim_x=dim_x, bound=(min_x, max_x))
+    args = get_args(dim_x, exp)
 
     B.epsilon = config["epsilon"]
 
-    model = get_model(model_name, args, "cpu")
-    param = PARAM
-    # param.load_name = f"{param.load_name}single_kernel/{target_name}_{model_name}3"
-    param.load_name = f"{param.load_name}{target_name}_{model_name}_matern300_2"
+    plot_name = f"{target_name}_{exp}_{run}_{n_rep}"
 
-    model.load_state_dict(
-        th.load(f"{PARAM.load_name}.pt", map_location=th.device("cpu"))
-    )
+    def load_model(model_name, target_name, exp_name, run, args):
+        model = get_model(model_name, config=config, args=args, device="cpu")
+        load_name = f"{load_path}/{exp_name}_{target_name}_{model_name}_{run}"
 
-    tot_gp = []
-    tot_rnp = []
-    for i in range(n_rep):
+        model.load_state_dict(th.load(f"{load_name}.pt", map_location=th.device("cpu")))
+        return model
+
+    model_names = ["cnp", "gnp", "rcnp", "rgnp", "acnp", "agnp"]
+
+    tot_mod = dict()
+    for name in model_names:
+        tot_mod[name] = []
+    tot_mod["gp"] = []
+    x_init = th.load(f"../results/BO/random_init_{dim_x}d.pt")
+    for i in tqdm(range(n_rep)):
         # Assuming min_x <= 0 < max_x
-        train_X = th.rand((5, dim_x))  # * (np.abs(min_x) + max_x) + min_x
+        # train_X = th.rand((5, dim_x))  # * (np.abs(min_x) + max_x) + min_x
+        train_X = x_init[i]
 
         optim_gp = baseline_optim(
             train_X, target(train_X)[:, None], n_steps, (min_x, max_x), target
         )
-        # print(optim_gp)
-        tot_gp.append(optim_gp)
-        optim_rnp = rnp_optim(
-            model,
-            train_X,
-            target(train_X)[:, None],
-            n_steps,
-            target,
-        )
-        tot_rnp.append(optim_rnp)
-        if verbose:
-            print(optim_gp)
-            print(optim_rnp)
+        tot_mod["gp"].append(optim_gp)
+
+        for name in tqdm(model_names):
+            model = load_model(name, target_name, exp, run, args)
+            optim_model = model_optim(
+                model,
+                train_X,
+                target(train_X)[:, None],
+                n_steps,
+                target,
+            )
+            tot_mod[name].append(optim_model)
 
     if vis:
-        visualize(tar_min, [(tot_gp, "GP"), (tot_rnp, "RNP")])
+        np.save(f"results/{plot_name}.npy", tot_mod)
+        visualize(tar_min, tot_mod.items(), name=plot_name)
 
 
 if __name__ == "__main__":

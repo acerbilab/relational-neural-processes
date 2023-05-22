@@ -1,17 +1,15 @@
+import warnings
+
 import lab as B
 import stheno
-import warnings
-import math
-import numpy as np
-
 
 from .data import SyntheticGenerator, new_batch
-from .kernelgrammar_stheno import sample_kernel
+from .kernelgrammar_stheno import sample_kernel, sample_basic_kernel
 
-__all__ = ["GPGenerator"]
+__all__ = ["GPGeneratorSample"]
 
 
-class GPGenerator(SyntheticGenerator):
+class GPGeneratorSample(SyntheticGenerator):
     """GP generator.
 
     Further takes in arguments and keyword arguments from the constructor of
@@ -37,12 +35,14 @@ class GPGenerator(SyntheticGenerator):
     def __init__(
         self,
         *args,
-        kernel=stheno.EQ().stretch(0.25),
+        kernel_struct="fixed",
+        kernel=None,
         pred_logpdf=True,
         pred_logpdf_diag=True,
         **kw_args,
     ):
-        self.kernel = kernel
+        assert kernel is None, "Kernel argument is irrelevant"
+        self.kernel_struct = kernel_struct
         self.pred_logpdf = pred_logpdf
         self.pred_logpdf_diag = pred_logpdf_diag
         super().__init__(*args, **kw_args)
@@ -56,15 +56,6 @@ class GPGenerator(SyntheticGenerator):
         """
         with B.on_device(self.device):
             set_batch, xcs, xc, nc, xts, xt, nt = new_batch(self, self.dim_y)
-            import torch as th
-
-            # xc = xc.type(th.float32)
-            # xt = xt.type(th.float32)
-            # self.noise = self.noise.type(th.float32)
-
-            # If `self.h` is specified, then we create a multi-output GP. Otherwise, we
-            # use a simple regular GP.
-            import torch as th
 
             if self.h is None:
                 # TODO: Simple way to ignore the todense warnings
@@ -73,50 +64,25 @@ class GPGenerator(SyntheticGenerator):
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     with stheno.Measure() as prior:
-                        self.kernel = sample_kernel(single=False)
-                        # print(self.kernel)
-                        # self.kernel = sample_kernel(single=False)
-                        # Dutordoir2022 claims to sample lengthscales from
-                        #   log N(log(0.5),sqrt(0.5)) but that makes no sense
-                        #   so we sample from exp N(log(0.5),0.5) (the sqrt would work as well
-                        #   but looks strange, we can change that later if we want to
-                        # self.kernel = stheno.Matern32().stretch(
-                        #     np.exp(math.log(0.5) + math.sqrt(0.5) * np.random.randn())
-                        # )
-                        # self.kernel = stheno.EQ()
-                        # self.kernel = stheno.Matern32()
+                        if self.kernel_struct == "fixed":
+                            self.kernel = stheno.Matern52()
+                        elif self.kernel_struct == "matern":
+                            self.kernel = sample_basic_kernel("matern52", scale=True)
+                        elif self.kernel_struct == "single":
+                            self.kernel = sample_kernel(True)
+                        elif self.kernel_struct == "sumprod":
+                            self.kernel = sample_kernel(False)
                         f = stheno.GP(self.kernel)
                         # Construct FDDs for the context and target points.
                         fc = f(xc, self.noise)
                         ft = f(xt, self.noise)
             else:
                 raise NotImplementedError
-                # with stheno.Measure() as prior:
-                #     # Construct latent processes and initialise output processes.
-                #     us = [stheno.GP(self.kernel) for _ in range(self.dim_y_latent)]
-                #     fs = [0 for _ in range(self.dim_y)]
-                #     # Perform matrix multiplication.
-                #     for i in range(self.dim_y):
-                #         for j in range(self.dim_y_latent):
-                #             fs[i] = fs[i] + self.h[i, j] * us[j]
-                #     # Finally, construct the multi-output GP.
-                #     f = stheno.cross(*fs)
-                #     # Construct FDDs for the context and target points.
-                #     fc = f(
-                #         tuple(fi(xci) for fi, xci in zip(fs, xcs)),
-                #         self.noise,
-                #     )
-                #     ft = f(
-                #         tuple(fi(xti) for fi, xti in zip(fs, xts)),
-                #         self.noise,
-                #     )
 
             # Sample context and target set.
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 self.state, yc, yt = prior.sample(self.state, fc, ft)
-            # print(yc.mean(), yc.std())
-            # print(xc.shape)
 
             # Make the new batch.
             batch = {}
