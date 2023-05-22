@@ -7,7 +7,6 @@ from functools import partial
 
 import experiment as exp
 import lab as B
-import gc
 import neuralprocesses.torch as nps
 import numpy as np
 import torch
@@ -40,8 +39,6 @@ def train(state, model, opt, objective, gen, *, fix_noise):
         opt.zero_grad(set_to_none=True)
         val.backward()
         opt.step()
-        # torch.cuda.empty_cache()
-        # gc.collect()
 
     vals = B.concat(*vals)
     out.kv("Loglik (T)", exp.with_err(vals, and_lower=True))
