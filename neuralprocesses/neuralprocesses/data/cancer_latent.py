@@ -91,7 +91,7 @@ class CancerLatentGenerator(DataGenerator):
         # choose observation type and reshape and scale
         max_value = 10
         self.trajectories1=[tr[2].reshape(ntime, nx, nx) / max_value for tr in trajectories_data]
-        self.trajectories2=[tr[1].reshape(ntime, nx, nx) / max_value for tr in trajectories_data]
+        self.trajectories2=[tr[0].reshape(ntime, nx, nx) / max_value for tr in trajectories_data]
 
         nsamples = len(self.trajectories1)
         self.trajectories_ind = UniformDiscrete(0, nsamples - 1)
