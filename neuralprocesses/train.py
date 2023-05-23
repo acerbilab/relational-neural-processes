@@ -7,7 +7,6 @@ from functools import partial
 
 import experiment as exp
 import lab as B
-import gc
 import neuralprocesses.torch as nps
 import numpy as np
 import torch
@@ -40,8 +39,6 @@ def train(state, model, opt, objective, gen, *, fix_noise):
         opt.zero_grad(set_to_none=True)
         val.backward()
         opt.step()
-        # torch.cuda.empty_cache()
-        # gc.collect()
 
     vals = B.concat(*vals)
     out.kv("Loglik (T)", exp.with_err(vals, and_lower=True))
@@ -241,10 +238,6 @@ def main(**kw_args):
     if args.dim_x == 1 and args.model in ['rcnp', 'rgnp'] and args.non_equivariant_dim is not None:
         out.out("Can't use RCNP if data does not require relational encoding")
         sys.exit(1)
-
-    # translational-equivariance function for non-isotropic kernel
-    if args.data not in ["eq", "matern"]:
-        args.comparison_function = "difference"
 
     # Remove the dimensionality specification if the experiment doesn't need it.
     if not exp.data[args.data]["requires_dim_x"]:
