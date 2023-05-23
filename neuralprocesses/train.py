@@ -239,10 +239,6 @@ def main(**kw_args):
         out.out("Can't use RCNP if data does not require relational encoding")
         sys.exit(1)
 
-    # translational-equivariance function for non-isotropic kernel
-    if args.data not in ["eq", "matern"]:
-        args.comparison_function = "difference"
-
     # Remove the dimensionality specification if the experiment doesn't need it.
     if not exp.data[args.data]["requires_dim_x"]:
         del args.dim_x
