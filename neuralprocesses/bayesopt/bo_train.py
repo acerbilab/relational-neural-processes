@@ -109,10 +109,7 @@ def main(run, target, model, exp, save_postfix):
     args = get_args(dim_x, exp)
     config = get_config(dim_x, bound)
 
-    # args["epochs"] = 1
-    # args["train_fast"] = True
     args["seed"] = int(run)
-    # assert False
 
     save_name = f"BO/{exp}_{target}_{model}_{run}"
     if save_postfix != "":

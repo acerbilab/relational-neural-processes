@@ -18,25 +18,6 @@ from config import get_args, get_config
 from utils import get_target, get_model
 
 
-def baseline_get_candidate(train_X, train_Y, bound, curr_min):
-    dim_x = train_X.shape[1]
-    gp = SingleTaskGP(train_X, standardize(train_Y))
-    mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
-    fit_gpytorch_mll(mll)
-    acq = ExpectedImprovement(gp, best_f=curr_min)
-
-    bounds = th.stack([bound[0] * th.zeros(dim_x), bound[1] * th.ones(dim_x)])
-    # TODO: get the same for our Setup
-    candidate, acq_value = optimize_acqf(
-        acq,
-        bounds=bounds,
-        q=1,
-        num_restarts=5,
-        raw_samples=20,
-    )
-    return candidate  # tensor([0.4887, 0.5063])
-
-
 def baseline_get_candidate_cma(train_X, train_Y, bound=None):
     assert bound is None, "Don't allow non-cube bounds for now"
     # maximize the negative target
@@ -44,10 +25,8 @@ def baseline_get_candidate_cma(train_X, train_Y, bound=None):
     gp = SingleTaskGP(train_X, Y)
     mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
     fit_gpytorch_mll(mll)
-    # EI = ExpectedImprovement(gp, best_f=Y.min())
     EI = ExpectedImprovement(gp, best_f=Y.max())
 
-    x0 = np.random.rand(train_X.shape[1])
     x0tmp = np.random.rand(100, train_X.shape[1])
     ymp = EI(th.tensor(x0tmp, dtype=train_X.dtype).unsqueeze(-2))
     x0 = x0tmp[ymp.argmax()]
@@ -74,42 +53,10 @@ def baseline_get_candidate_cma(train_X, train_Y, bound=None):
     return th.from_numpy(es.best.x).to(X).unsqueeze(0)
 
 
-def rnp_get_candidate_cma_tmp(model, train_X, train_Y):
-    opt_func = lambda x: EI_objective(x, model, train_X, train_Y, -train_Y.min())
-
-    # x0 = np.random.rand(train_X.shape[1])
-
-    x0tmp = np.random.rand(100, train_X.shape[1])
-    ytmp = -opt_func(th.tensor(x0tmp, device=train_X.device, dtype=train_X.dtype))
-    x0 = x0tmp[ytmp.argmin()]
-
-    es = cma.CMAEvolutionStrategy(
-        x0=x0,
-        sigma0=0.2,
-        inopts={"bounds": [0, 1], "popsize": 50},
-    )
-
-    X = train_X
-
-    while not es.stop():
-        xs = es.ask()
-        X = th.tensor(xs, device=X.device, dtype=X.dtype)
-
-        # cma again expects us to minimize
-        with th.no_grad():
-            Y = -opt_func(X)
-
-        y = Y.view(-1).double().numpy()
-        es.tell(xs, y)
-
-    return th.from_numpy(es.best.x).to(X).unsqueeze(0)
-
-
 def rnp_get_candidate_cma(model, train_X, train_Y):
     train_Y = -standardize(train_Y)
     opt_func = lambda x: EI_objective(x, model, train_X, train_Y, train_Y.max())
 
-    # x0 = np.random.rand(2, train_X.shape[1])
     x0 = np.random.rand(train_X.shape[1])
 
     x0tmp = np.random.rand(100, train_X.shape[1])
@@ -150,22 +97,7 @@ def EI_objective(x, model, train_X, train_Y, f_best):
     return res
 
 
-def rnp_get_candidate_cma_old(model, train_X, train_Y):
-    opt_func = lambda x: EI_objective(x, model, train_X, train_Y, train_Y.max())
-
-    # Get candidates and yes, this does not need to be a loop
-    # TODO: change that
-    Xcan = th.rand((100, 3)).numpy()
-    res = [opt_func(x) for x in Xcan]
-
-    Xstart = Xcan[np.argmin(res)]
-
-    # xopt, es = cma.fmin2(opt_func, train_X[train_Y.argmax()], 0.5)
-    xopt, es = cma.fmin2(opt_func, Xstart, 0.5)
-    return th.from_numpy(xopt[None]).float()
-
-
-def baseline_optim(init_x, init_y, n_steps, bound, target):
+def baseline_optim(init_x, init_y, n_steps, target):
     optima = th.zeros(n_steps)
 
     train_X = th.clone(init_x).type(th.double)
@@ -173,7 +105,6 @@ def baseline_optim(init_x, init_y, n_steps, bound, target):
     # Want to minimize the target
     optima[0] = train_Y.min()
     for step in tqdm(range(1, n_steps)):
-        # candidate = baseline_get_candidate(train_X, train_Y, bound, optima[step])
         candidate = baseline_get_candidate_cma(train_X, train_Y)
         train_X = th.cat((train_X, candidate))
         train_Y = th.cat((train_Y, target(candidate)[None]))
@@ -207,15 +138,6 @@ def compute_EI(mu, var, f_best):
     Z = (mu - f_best) / var.sqrt()
 
     return var.sqrt() * (Z * p.cdf(Z) + p.log_prob(Z).exp())
-
-
-def rnp_get_candidate_rand(model, train_X, train_Y):
-    x_range = th.rand((50, train_X.shape[1])).T[None]
-    with th.no_grad():
-        pred = model(train_X.T[None], train_Y.T[None], x_range)
-        EI = compute_EI(pred.mean.squeeze(), pred.var.squeeze(), train_Y.max())
-        candidate = x_range[:, :, th.argmax(EI)]
-    return candidate
 
 
 def visualize(tar_min, methods, name="tmp"):
@@ -275,9 +197,7 @@ def main(vis, n_rep, n_steps, load_path, target_name, exp, run, verbose):
         # train_X = th.rand((5, dim_x))  # * (np.abs(min_x) + max_x) + min_x
         train_X = x_init[i]
 
-        optim_gp = baseline_optim(
-            train_X, target(train_X)[:, None], n_steps, (min_x, max_x), target
-        )
+        optim_gp = baseline_optim(train_X, target(train_X)[:, None], n_steps, target)
         tot_mod["gp"].append(optim_gp)
 
         for name in tqdm(model_names):

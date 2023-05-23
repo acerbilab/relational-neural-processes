@@ -58,9 +58,6 @@ class GPGeneratorSample(SyntheticGenerator):
             set_batch, xcs, xc, nc, xts, xt, nt = new_batch(self, self.dim_y)
 
             if self.h is None:
-                # TODO: Simple way to ignore the todense warnings
-                #   Should be made more specific later
-                #   -> Does not work yet, fix later
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     with stheno.Measure() as prior:

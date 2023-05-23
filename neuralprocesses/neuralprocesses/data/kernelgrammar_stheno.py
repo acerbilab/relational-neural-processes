@@ -7,13 +7,11 @@ import stheno.torch as st
 
 
 def scale_kernel(kernel):
-    # outputscale = th.exp(th.randn(1))
     outputscale = np.exp(np.random.randn())
     return outputscale * kernel
 
 
 def sample_length():
-    # return th.exp(th.randn(1))
     return np.exp(np.random.randn())
 
 
