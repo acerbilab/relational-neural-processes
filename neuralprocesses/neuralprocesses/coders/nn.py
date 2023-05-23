@@ -7,9 +7,8 @@ from plum import convert
 
 from .. import _dispatch
 from ..datadims import data_dims
-from ..util import register_module, compress_batch_dimensions, with_first_last
 from ..parallel import Parallel
-
+from ..util import register_module, compress_batch_dimensions, with_first_last
 
 __all__ = ["Linear", "MLP", "UNet", "ConvNet", "Conv", "ResidualBlock", "RelationalMLP"]
 
@@ -99,7 +98,6 @@ class MLP:
 
 @_dispatch
 def code(coder: Union[Linear, MLP], xz, z: B.Numeric, x, **kw_args):
-
     d = data_dims(xz)
 
     # Construct permutation to switch the channel dimension and the last dimension.
@@ -189,9 +187,15 @@ class RelationalMLP:
         if self.relational_encoding_type == "simple":
             if self.comparison_function == "distance":
                 # (batch_size, target_set_size, set_size, 1))
-                dist_x = B.sqrt(B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(-1))
+                dist_x = B.sqrt(
+                    B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(
+                        -1
+                    )
+                )
                 # (batch_size, target_set_size, set_size, 2))
-                dist_x = B.concat(dist_x, yc.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1)
+                dist_x = B.concat(
+                    dist_x, yc.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1
+                )
                 # (batch_size, target_set_size * set_size, 2))
                 dist_x = dist_x.reshape(batch_size, -1, 1 + out_dim)
                 batch_size, diff_size, filter_size = dist_x.shape
@@ -199,9 +203,15 @@ class RelationalMLP:
                 x = dist_x.view(batch_size * diff_size, filter_size)
             elif self.comparison_function == "difference":
                 xc_pairs = B.concat(xc, yc, axis=-1).unsqueeze(1)
-                xt_pairs = B.concat(xt, B.cast(xt.dtype, B.zeros(batch_size, target_set_size, 1)), axis=-1).unsqueeze(2)
+                xt_pairs = B.concat(
+                    xt,
+                    B.cast(xt.dtype, B.zeros(batch_size, target_set_size, 1)),
+                    axis=-1,
+                ).unsqueeze(2)
 
-                diff_x = (xt_pairs - xc_pairs).reshape(batch_size, -1, feature_dim + out_dim)
+                diff_x = (xt_pairs - xc_pairs).reshape(
+                    batch_size, -1, feature_dim + out_dim
+                )
                 batch_size, diff_size, filter_size = diff_x.shape
                 x = diff_x.view(batch_size * diff_size, filter_size)
             elif self.comparison_function == "partial_distance":
@@ -213,13 +223,24 @@ class RelationalMLP:
                 xc_equivariant = xc[:, :, equivariant_dim]
                 xt_equivariant = xt[:, :, equivariant_dim]
 
-                dist_x = B.sqrt(B.sum((xt_equivariant.unsqueeze(2) - xc_equivariant.unsqueeze(1)) ** 2, axis=-1).unsqueeze(-1))
+                dist_x = B.sqrt(
+                    B.sum(
+                        (xt_equivariant.unsqueeze(2) - xc_equivariant.unsqueeze(1))
+                        ** 2,
+                        axis=-1,
+                    ).unsqueeze(-1)
+                )
 
-                dist_x = B.concat(dist_x,
-                                  xc_non_equivariant.unsqueeze(1).repeat(1, target_set_size, 1, 1),
-                                  yc.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1)
+                dist_x = B.concat(
+                    dist_x,
+                    xc_non_equivariant.unsqueeze(1).repeat(1, target_set_size, 1, 1),
+                    yc.unsqueeze(1).repeat(1, target_set_size, 1, 1),
+                    axis=-1,
+                )
 
-                dist_x = dist_x.reshape(batch_size, -1, 1 + len(self.non_equivariant_dim) + out_dim)
+                dist_x = dist_x.reshape(
+                    batch_size, -1, 1 + len(self.non_equivariant_dim) + out_dim
+                )
                 batch_size, diff_size, filter_size = dist_x.shape
                 x = dist_x.view(batch_size * diff_size, filter_size)
             elif self.comparison_function == "partial_difference":
@@ -230,34 +251,59 @@ class RelationalMLP:
                 equivariant_dim = list(set(all_dim) - set(self.non_equivariant_dim))
                 xc_equivariant = xc[:, :, equivariant_dim]
                 xt_equivariant = xt[:, :, equivariant_dim]
-                xc_equivariant_pairs = B.concat(xc_equivariant, yc, axis=-1).unsqueeze(1)
+                xc_equivariant_pairs = B.concat(xc_equivariant, yc, axis=-1).unsqueeze(
+                    1
+                )
 
-                xt_equivariant_pairs = B.concat(xt_equivariant, B.cast(xt.dtype, B.zeros(batch_size, target_set_size, 1)),
-                                     axis=-1).unsqueeze(2)
+                xt_equivariant_pairs = B.concat(
+                    xt_equivariant,
+                    B.cast(xt.dtype, B.zeros(batch_size, target_set_size, 1)),
+                    axis=-1,
+                ).unsqueeze(2)
                 diff_x = xt_equivariant_pairs - xc_equivariant_pairs
-                diff_x = B.concat(diff_x,
-                                  xc_non_equivariant.unsqueeze(1).repeat(1, target_set_size, 1, 1),
-                                  axis=-1).reshape(batch_size, -1, feature_dim + out_dim)
+                diff_x = B.concat(
+                    diff_x,
+                    xc_non_equivariant.unsqueeze(1).repeat(1, target_set_size, 1, 1),
+                    axis=-1,
+                ).reshape(batch_size, -1, feature_dim + out_dim)
 
                 batch_size, diff_size, filter_size = diff_x.shape
                 x = diff_x.view(batch_size * diff_size, filter_size)
         elif self.relational_encoding_type == "full":
             if self.comparison_function == "distance":
-                relational_matrix = B.sqrt(B.sum((xc.unsqueeze(2) - xc.unsqueeze(1))**2, axis=-1).unsqueeze(-1))
+                relational_matrix = B.sqrt(
+                    B.sum((xc.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(
+                        -1
+                    )
+                )
                 yc_matrix_1 = yc.unsqueeze(2).repeat(1, 1, set_size, 1)
                 yc_matrix_2 = yc.unsqueeze(1).repeat(1, set_size, 1, 1)
                 # shape: [batch_size, set_size, set_size, 3]
-                relational_matrix = B.concat(relational_matrix, yc_matrix_1, yc_matrix_2, axis=-1)
+                relational_matrix = B.concat(
+                    relational_matrix, yc_matrix_1, yc_matrix_2, axis=-1
+                )
                 # shape: [batch_size, set_size * set_size, 3]
-                relational_matrix = relational_matrix.reshape(batch_size, set_size*set_size, -1)
+                relational_matrix = relational_matrix.reshape(
+                    batch_size, set_size * set_size, -1
+                )
 
                 # shape: [batch_size, target_set_size, set_size * set_size, 1]
-                dist_x = B.sqrt(B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(-1)).repeat(1, 1, set_size, 1)
+                dist_x = B.sqrt(
+                    B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(
+                        -1
+                    )
+                ).repeat(1, 1, set_size, 1)
 
                 # shape: [batch_size, target_set_size, set_size * set_size, 4]
-                dist_x = B.concat(dist_x, relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1)
+                dist_x = B.concat(
+                    dist_x,
+                    relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1),
+                    axis=-1,
+                )
 
-                dist_x = dist_x.reshape(batch_size, target_set_size * set_size * set_size, -1)
+                dist_x = dist_x.reshape(
+                    batch_size, target_set_size * set_size * set_size, -1
+                )
 
                 batch_size, diff_size, filter_size = dist_x.shape
                 # x shape: [batch_size * target_set_size * set_size * set_size, 4]
@@ -267,9 +313,13 @@ class RelationalMLP:
                 yc_matrix_1 = yc.unsqueeze(2).repeat(1, 1, set_size, 1)
                 yc_matrix_2 = yc.unsqueeze(1).repeat(1, set_size, 1, 1)
                 # shape: [batch_size, set_size, set_size, dim_x+2*dim_y]
-                relational_matrix = B.concat(relational_matrix, yc_matrix_1, yc_matrix_2, axis=-1)
+                relational_matrix = B.concat(
+                    relational_matrix, yc_matrix_1, yc_matrix_2, axis=-1
+                )
                 # shape: [batch_size, set_size * set_size, dim_x+2*dim_y]
-                relational_matrix = relational_matrix.reshape(batch_size, set_size * set_size, -1)
+                relational_matrix = relational_matrix.reshape(
+                    batch_size, set_size * set_size, -1
+                )
 
                 context_xp = xc.unsqueeze(1)
                 target_xp = xt.unsqueeze(2)
@@ -277,9 +327,15 @@ class RelationalMLP:
                 diff_x = (target_xp - context_xp).repeat(1, 1, set_size, 1)
 
                 # shape: [batch_size, target_set_size, set_size * set_size, 2*dim_x+2*dim_y]
-                diff_x = B.concat(diff_x, relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1)
+                diff_x = B.concat(
+                    diff_x,
+                    relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1),
+                    axis=-1,
+                )
 
-                diff_x = diff_x.reshape(batch_size, target_set_size * set_size * set_size, -1)
+                diff_x = diff_x.reshape(
+                    batch_size, target_set_size * set_size * set_size, -1
+                )
                 batch_size, diff_size, filter_size = diff_x.shape
                 # x shape: [batch_size * target_set_size * set_size * set_size, 4]
                 x = diff_x.view(batch_size * diff_size, filter_size)
@@ -292,25 +348,46 @@ class RelationalMLP:
                 xc_equivariant = xc[:, :, equivariant_dim]
                 xt_equivariant = xt[:, :, equivariant_dim]
 
-                relational_matrix = B.sqrt(B.sum((xc_equivariant.unsqueeze(2) - xc_equivariant.unsqueeze(1)) ** 2, axis=-1).unsqueeze(-1))
+                relational_matrix = B.sqrt(
+                    B.sum(
+                        (xc_equivariant.unsqueeze(2) - xc_equivariant.unsqueeze(1))
+                        ** 2,
+                        axis=-1,
+                    ).unsqueeze(-1)
+                )
                 yc_matrix_1 = yc.unsqueeze(2).repeat(1, 1, set_size, 1)
                 yc_matrix_2 = yc.unsqueeze(1).repeat(1, set_size, 1, 1)
                 # shape: [batch_size, set_size, set_size, 3]
-                relational_matrix = B.concat(relational_matrix, yc_matrix_1, yc_matrix_2, axis=-1)
+                relational_matrix = B.concat(
+                    relational_matrix, yc_matrix_1, yc_matrix_2, axis=-1
+                )
                 # shape: [batch_size, set_size * set_size, 3]
-                relational_matrix = relational_matrix.reshape(batch_size, set_size * set_size, -1)
+                relational_matrix = relational_matrix.reshape(
+                    batch_size, set_size * set_size, -1
+                )
 
                 # shape: [batch_size, target_set_size, set_size * set_size, 1]
-                dist_x = B.sqrt(B.sum((xt_equivariant.unsqueeze(2) - xc_equivariant.unsqueeze(1)) ** 2, axis=-1).unsqueeze(-1)).repeat(1, 1,
-                                                                                                               set_size,
-                                                                                                               1)
+                dist_x = B.sqrt(
+                    B.sum(
+                        (xt_equivariant.unsqueeze(2) - xc_equivariant.unsqueeze(1))
+                        ** 2,
+                        axis=-1,
+                    ).unsqueeze(-1)
+                ).repeat(1, 1, set_size, 1)
 
                 # shape: [batch_size, target_set_size, set_size * set_size, 4 + non-equivariant_dim]
-                dist_x = B.concat(dist_x,
-                                  relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1),
-                                  xc_non_equivariant.unsqueeze(1).repeat(1, target_set_size, set_size, 1), axis=-1)
+                dist_x = B.concat(
+                    dist_x,
+                    relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1),
+                    xc_non_equivariant.unsqueeze(1).repeat(
+                        1, target_set_size, set_size, 1
+                    ),
+                    axis=-1,
+                )
 
-                dist_x = dist_x.reshape(batch_size, target_set_size * set_size * set_size, -1)
+                dist_x = dist_x.reshape(
+                    batch_size, target_set_size * set_size * set_size, -1
+                )
 
                 batch_size, diff_size, filter_size = dist_x.shape
                 # x shape: [batch_size * target_set_size * set_size * set_size, 4 + non-equivariant_dim]
@@ -325,13 +402,19 @@ class RelationalMLP:
                 xc_equivariant = xc[:, :, equivariant_dim]
                 xt_equivariant = xt[:, :, equivariant_dim]
 
-                relational_matrix = xc_equivariant.unsqueeze(2) - xc_equivariant.unsqueeze(1)
+                relational_matrix = xc_equivariant.unsqueeze(
+                    2
+                ) - xc_equivariant.unsqueeze(1)
                 yc_matrix_1 = yc.unsqueeze(2).repeat(1, 1, set_size, 1)
                 yc_matrix_2 = yc.unsqueeze(1).repeat(1, set_size, 1, 1)
                 # shape: [batch_size, set_size, set_size, dim_x+2*dim_y]
-                relational_matrix = B.concat(relational_matrix, yc_matrix_1, yc_matrix_2, axis=-1)
+                relational_matrix = B.concat(
+                    relational_matrix, yc_matrix_1, yc_matrix_2, axis=-1
+                )
                 # shape: [batch_size, set_size * set_size, dim_x+2*dim_y]
-                relational_matrix = relational_matrix.reshape(batch_size, set_size * set_size, -1)
+                relational_matrix = relational_matrix.reshape(
+                    batch_size, set_size * set_size, -1
+                )
 
                 context_xp = xc_equivariant.unsqueeze(1)
                 target_xp = xt_equivariant.unsqueeze(2)
@@ -339,11 +422,18 @@ class RelationalMLP:
                 diff_x = (target_xp - context_xp).repeat(1, 1, set_size, 1)
 
                 # shape: [batch_size, target_set_size, set_size * set_size, 2*dim_x+2*dim_y+non_equivariant_dim]
-                diff_x = B.concat(diff_x,
-                                  relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1),
-                                  xc_non_equivariant.unsqueeze(1).repeat(1, target_set_size, set_size, 1), axis=-1)
+                diff_x = B.concat(
+                    diff_x,
+                    relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1),
+                    xc_non_equivariant.unsqueeze(1).repeat(
+                        1, target_set_size, set_size, 1
+                    ),
+                    axis=-1,
+                )
 
-                diff_x = diff_x.reshape(batch_size, target_set_size * set_size * set_size, -1)
+                diff_x = diff_x.reshape(
+                    batch_size, target_set_size * set_size * set_size, -1
+                )
                 batch_size, diff_size, filter_size = diff_x.shape
                 # x shape: [batch_size * target_set_size * set_size * set_size, 4]
                 x = diff_x.view(batch_size * diff_size, filter_size)
@@ -352,7 +442,11 @@ class RelationalMLP:
         x = x.view(batch_size, diff_size, self.relational_out_dim)
 
         encoded_feature_dim = x.shape[-1]
-        set_size = set_size if self.relational_encoding_type == "simple" else set_size * set_size
+        set_size = (
+            set_size
+            if self.relational_encoding_type == "simple"
+            else set_size * set_size
+        )
         x = x.view(batch_size, target_set_size, set_size, encoded_feature_dim)
         encoded_target_x = x.sum(dim=2)
 
@@ -368,13 +462,15 @@ def code(coder: RelationalMLP, xz, z: B.Numeric, x, **kw_args):
     xz = coder(xz, z, x)
     return xz, z
 
+
 # this was the 'select' option
-#@_dispatch
-#def code(coder: RelationalMLP, xz: Parallel, z: Parallel, x, **kw_args):
+# @_dispatch
+# def code(coder: RelationalMLP, xz: Parallel, z: Parallel, x, **kw_args):
 #    xz = xz[kw_args['select_channel']]
 #    z = z[kw_args['select_channel']]
 #    xz = coder(xz, z, x)
 #    return xz, z
+
 
 # this is the 'concat' option used in final experiments
 # encode with all context sets, need to modify the input dimension of decoder

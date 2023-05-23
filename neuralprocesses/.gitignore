@@ -27,3 +27,7 @@ venv-np
 _experiments
 
 ../.idea
+*.png
+BO/*
+outcmaes*
+.ipynb_checkpoints/*

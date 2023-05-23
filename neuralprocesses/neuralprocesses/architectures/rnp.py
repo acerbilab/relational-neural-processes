@@ -94,12 +94,12 @@ def construct_rnp(
         )
 
     mlp_out_channels, selector, likelihood = construct_likelihood(
-            nps,
-            spec=likelihood,
-            dim_y=dim_yt,
-            num_basis_functions=num_basis_functions,
-            dtype=dtype,
-        )
+        nps,
+        spec=likelihood,
+        dim_y=dim_yt,
+        num_basis_functions=num_basis_functions,
+        dtype=dtype,
+    )
 
     def construct_relational_mlp(dim_yci):
         if relational_encoding_type == "simple":
@@ -121,7 +121,11 @@ def construct_rnp(
             elif comparison_function == "partial_difference":
                 if non_equivariant_dim is None:
                     raise RuntimeError("you need to specify non-equivariant dim!")
-                in_dim = 2 * (dim_x-len(non_equivariant_dim)) + 2 * dim_yci + len(non_equivariant_dim)
+                in_dim = (
+                    2 * (dim_x - len(non_equivariant_dim))
+                    + 2 * dim_yci
+                    + len(non_equivariant_dim)
+                )
             else:
                 in_dim = 2 * dim_x + 2 * dim_yci
 
@@ -143,7 +147,6 @@ def construct_rnp(
                 nps.RelationalEncode(relational_encoder, encode_target=True)
             ),
             nps.DeterministicLikelihood(),
-
         )
     else:
         # if enc_same=False we need multiple relational encoders
@@ -154,7 +157,9 @@ def construct_rnp(
                     nps.Copy(len(dim_yc)),
                     nps.Parallel(
                         *(
-                            nps.RelationalEncode(relational_encoder[ii], encode_target=True, out_index=ii)
+                            nps.RelationalEncode(
+                                relational_encoder[ii], encode_target=True, out_index=ii
+                            )
                             for ii in range(len(dim_yc))
                         )
                     ),
@@ -168,7 +173,9 @@ def construct_rnp(
         if non_equivariant_dim is None:
             raise RuntimeError("you need to specify non-equivariant dim!")
         nb_non_equivariant_dim = len(non_equivariant_dim)
-        dec_dim_input = (dim_relational_embedding + nb_non_equivariant_dim) * len(dim_yc)
+        dec_dim_input = (dim_relational_embedding + nb_non_equivariant_dim) * len(
+            dim_yc
+        )
     else:
         dec_dim_input = dim_relational_embedding * len(dim_yc)
 

@@ -1,17 +1,25 @@
 from functools import partial
 
+import neuralprocesses.torch as nps
 import torch
 
-import neuralprocesses.torch as nps
 from .util import register_data
-import numpy as np
 
 __all__ = []
 
 
-def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device, seeds):
+def setup(
+    name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device, seeds
+):
     config["dim_x"] = args.dim_x
     config["dim_y"] = args.dim_y
+
+    if "x_range_context" in config.keys():
+        x_range_context = config["x_range_context"]
+        x_range_target = config["x_range_context"]
+    else:
+        x_range_context = (-1, 1)
+        x_range_target = (-1, 1)
 
     # Architecture choices specific for the GP experiments:
     # TODO: We should use a stride of 1 in the first layer, but for compatibility
@@ -52,6 +60,8 @@ def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, 
         dim_y=args.dim_y,
         pred_logpdf=False,
         pred_logpdf_diag=False,
+        x_range_context=x_range_context,
+        x_range_target=x_range_target,
         device=device,
         mean_diff=config["mean_diff"],
     )[name]
@@ -65,6 +75,8 @@ def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, 
         dim_y=args.dim_y,
         pred_logpdf=True,
         pred_logpdf_diag=True,
+        x_range_context=x_range_context,
+        x_range_target=x_range_target,
         device=device,
         mean_diff=config["mean_diff"],
     )[name]
@@ -97,6 +109,7 @@ def setup(name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, 
 
     return gen_train, gen_cv, gens_eval
 
+
 names = [
     "eq",
     "matern",
@@ -106,6 +119,10 @@ names = [
     "mix-weakly-periodic",
     "sawtooth",
     "mixture",
+    "bo_fixed",
+    "bo_matern",
+    "bo_single",
+    "bo_sumprod",
 ]
 
 for name in names:
