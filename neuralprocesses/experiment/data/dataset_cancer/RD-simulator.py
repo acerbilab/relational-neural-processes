@@ -31,7 +31,7 @@ def RD_Simulator(k1_ini=10,k2_ini=100,r1_ini=0.003,r2_ini=0.03,r3_ini=2,alpha12_
     ou1=np.random.choice(range(10))/10
     ou2=np.random.choice(range(10))/10
 
-    # Scatter the initial condition for Rabbits randomly over all types.
+    # initial conditions
     init_N1_pop = spatialpy.UniformInitialCondition(species='N1', count=10)
     init_N2_pop = spatialpy.PlaceInitialCondition('N2', 10,[ou1,ou2,0])
     init_L_pop = spatialpy.ScatterInitialCondition(species='L', count=0)
@@ -39,7 +39,7 @@ def RD_Simulator(k1_ini=10,k2_ini=100,r1_ini=0.003,r2_ini=0.03,r3_ini=2,alpha12_
 
     rand=np.random.uniform(0.9,1.1,5)
 
-    # Define parameters for the rates of creation and destruction.
+    # Define parameters 
     k1 = spatialpy.Parameter(name='K1', expression=k1_ini)
     k2 = spatialpy.Parameter(name='K2', expression=k2_ini)
     r1 = spatialpy.Parameter(name='r1', expression=r1_ini*rand[0])
