@@ -42,7 +42,7 @@ def setup(
         config["width"] = 128
         config["relational_width"] = 128
         config["dim_embedding"] = 128
-        config["dim_relational_embedding"] = 128
+        config["dim_relational_embeddings"] = 128
 
     # Other settings specific to the GP experiments:
     config["plot"] = {
