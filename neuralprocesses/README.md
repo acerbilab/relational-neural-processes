@@ -72,15 +72,15 @@ python train.py \
     --enc-same \
     --num-basis-functions 32
 ```
-with x in (1, 10) and m in (rgnp, gnp, agnp, convgnp)
+with x in `(1, 10)` and m in `(rgnp, gnp, agnp, convgnp)`
 
 
 
 ## Reaction-Diffusion Model
 For the Reaction-Diffusion example, all the parameters selected for the experiments are listed in `neuralprocesses/experiments/data/cancer.py`. 
 
-The dataset used from the Reaction-Diffusion simulator is stored in the `neuralprocesses/experiments/data/dataset_cancer` folder, along with the python file that produces simulations (`RD-simulator.p`y).
-To run experiments, use, with x the seed chosen and m the method chosen (rcnp, rgnp, cnp, gnp, acnp, agnp):
+The dataset used from the Reaction-Diffusion simulator is stored in the `neuralprocesses/experiments/data/dataset_cancer` folder, along with the python file that produces simulations (`RD-simulator.py`).
+To run experiments, use, with x the seed chosen and m the method chosen `(rcnp, rgnp, cnp, gnp, acnp, agnp)`:
 ```
 python train.py \
     --data "cancer" \
