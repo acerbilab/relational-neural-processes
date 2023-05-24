@@ -177,6 +177,7 @@ def main(**kw_args):
         default="difference")
     parser.add_argument("--non-equivariant-dim", type=lambda s: [int(item) for item in s.split(',')], default=None)
     parser.add_argument("--enc-same", action="store_true")
+    parser.add_argument("--num-basis-functions", type=int, default=64)
 
     if kw_args:
         # Load the arguments from the keyword arguments passed to the function.
@@ -332,7 +333,7 @@ def main(**kw_args):
         # Performance of the ConvGNP is sensitive to this parameter. Moreover, it
         # doesn't make sense to set it to a value higher of the last hidden layer of
         # the CNN architecture. We therefore set it to 64.
-        "num_basis_functions": 64,
+        "num_basis_functions": args.num_basis_functions,  # default value 64
         "eeg_mode": args.eeg_mode,
         "cancer_obs_type": args.cancer_obs_type,
     }
@@ -425,6 +426,7 @@ def main(**kw_args):
                 relational_width=config['relational_width'],
                 num_relational_enc_layers=config['num_relational_layers'],
                 likelihood="lowrank",
+                num_basis_functions=config["num_basis_functions"],
                 transform=config["transform"],
                 relational_encoding_type="simple",
                 comparison_function=args.comparison_function,
@@ -460,6 +462,7 @@ def main(**kw_args):
                 relational_width=config['relational_width'],
                 num_relational_enc_layers=config['num_relational_layers'],
                 likelihood="lowrank",
+                num_basis_functions=config["num_basis_functions"],
                 transform=config["transform"],
                 comparison_function=args.comparison_function,
                 non_equivariant_dim=args.non_equivariant_dim,
