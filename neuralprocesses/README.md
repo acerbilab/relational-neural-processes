@@ -86,9 +86,7 @@ python train.py \
     --data "cancer" \
     --seed = x \
     --device='cuda' \
-    --model m \
-    --non-equivariant-dims 3 \
-    --comparison-function "partial_differences"
+    --model m
 ```
 For the additional study, run:
 ```
