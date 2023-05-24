@@ -21,7 +21,6 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
     config["unet_channels"] = (64,) * 7
     config["num_layers"] = 4
     config["num_basis_functions"] = 64
-    config["non_eqivariant_dim"] = 3
 
 
     this_seeds = this_seeds or [10, 20]
