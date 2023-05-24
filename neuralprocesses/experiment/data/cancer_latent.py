@@ -55,7 +55,7 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
                     seed=30,
                     dataset="small_test",
                     num_tasks=num_tasks_eval,
-                    mode="forecasting",
+                    mode="completion",
                     device=device
                 ),
             ),
