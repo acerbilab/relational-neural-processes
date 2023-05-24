@@ -7,7 +7,7 @@ __all__ = []
 
 def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device, this_seeds=None):
     config["default"]["rate"] = 1e-4
-    config["default"]["epochs"] = 200
+    config["default"]["epochs"] = 100
     config["dim_x"] = 4
     config["dim_y"] = 1
 
@@ -20,8 +20,7 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
     config["unet_strides"] = (1,) + (2,) * 6
     config["unet_channels"] = (64,) * 7
     config["num_layers"] = 4
-    config["dim_relational_embedding"] = 128
-    config["num_basis_functions"] = 32
+    config["num_basis_functions"] = 64
 
 
     this_seeds = this_seeds or [10, 20]
