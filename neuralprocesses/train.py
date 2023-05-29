@@ -336,6 +336,8 @@ def main(**kw_args):
         "num_basis_functions": args.num_basis_functions,  # default value 64
         "eeg_mode": args.eeg_mode,
         "cancer_obs_type": args.cancer_obs_type,
+        "comparison_function": args.comparison_function,
+        "non_equivariant_dim": args.non_equivariant_dim,
     }
 
     # Setup data generators for training and for evaluation.
@@ -411,8 +413,8 @@ def main(**kw_args):
                 likelihood="het",
                 transform=config["transform"],
                 relational_encoding_type="simple",
-                comparison_function=args.comparison_function,
-                non_equivariant_dim=args.non_equivariant_dim,
+                comparison_function=config["comparison_function"],
+                non_equivariant_dim=config["non_equivariant_dim"],
             )
         elif args.model == "rgnp":
             model = nps.construct_rnp(
@@ -429,8 +431,8 @@ def main(**kw_args):
                 num_basis_functions=config["num_basis_functions"],
                 transform=config["transform"],
                 relational_encoding_type="simple",
-                comparison_function=args.comparison_function,
-                non_equivariant_dim=args.non_equivariant_dim,
+                comparison_function=config["comparison_function"],
+                non_equivariant_dim=config["non_equivariant_dim"],
             )
         elif args.model == "fullrcnp":
             model = nps.construct_fullrnp(
@@ -446,8 +448,8 @@ def main(**kw_args):
                 num_relational_enc_layers=config['num_relational_layers'],
                 likelihood="het",
                 transform=config["transform"],
-                comparison_function=args.comparison_function,
-                non_equivariant_dim=args.non_equivariant_dim,
+                comparison_function=config["comparison_function"],
+                non_equivariant_dim=config["non_equivariant_dim"],
             )
         elif args.model == "fullrgnp":
             model = nps.construct_fullrnp(
@@ -464,8 +466,8 @@ def main(**kw_args):
                 likelihood="lowrank",
                 num_basis_functions=config["num_basis_functions"],
                 transform=config["transform"],
-                comparison_function=args.comparison_function,
-                non_equivariant_dim=args.non_equivariant_dim,
+                comparison_function=config["comparison_function"],
+                non_equivariant_dim=config["non_equivariant_dim"],
             )
         elif args.model == "gnp":
             model = nps.construct_gnp(
