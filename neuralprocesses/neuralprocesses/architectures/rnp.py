@@ -107,6 +107,12 @@ def construct_rnp(
             "are of the same dimensionality, but they are not."
         )
 
+    # Check if full relational encoding can be used.
+    if relational_encoding_type == "full" and len(dim_yc) > 1:
+        raise NotImplementedError(
+            "Full relational encoding over multiple context sets is not available."
+        )
+
     mlp_out_channels, selector, likelihood = construct_likelihood(
         nps,
         spec=likelihood,
