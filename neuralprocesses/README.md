@@ -20,7 +20,7 @@ pip install -r requirements.txt
 ```
 
 
-To use our RCNP models, you can specify `--model` as one of `[rcnp, rgnp, fullrcnp, fullrgnp]`, where the latter two represents the full version of our models. You can also choose comparison function for relational encoding by using `--comparison-function`, where `different` stands for encoding translational equivariance, and `distance` stands for encoding rigid transformations.
+To use our RCNP models, you can specify `--model` as one of `[rcnp, rgnp, fullrcnp, fullrgnp]`, where the latter two represents the full version of our models. You can also choose comparison function for relational encoding by using `--comparison-function`, where `difference` stands for encoding translational equivariance, and `distance` stands for encoding rigid transformations.
 
 We also support partial encoding, where some dimensions of the data do not need relational encoding, you can specify the dimensions that do not require relational encoding through `--non-equivariant-dim`, e.g., `--non-equivariant-dim=“0,1”` means the first and the second dimension will not be encoded by relational encoder.
 
@@ -47,7 +47,7 @@ python bayesopt/bo_train.py \
     --exp="bo_fixed" \
     --model="rcnp"
  ```
-to pretrain a model with the desired set of kernels. Here, ``-target` is one of `[hartmann3d, hartmann6d]`, `--exp` is one of `[bo_fixed, bo_matern, bo_single, bo_sumprod]` corresponding to scenario (i)-(iv) in the paper. `--model` is one of `[cnp, gnp, acnp, agnp, rcnp, rgnp]`.
+to pretrain a model with the desired set of kernels. Here, `--target` is one of `[hartmann3d, hartmann6d]`, `--exp` is one of `[bo_fixed, bo_matern, bo_single, bo_sumprod]` corresponding to scenario (i)-(iv) in the paper. `--model` is one of `[cnp, gnp, acnp, agnp, rcnp, rgnp]`.
 
 Once trained, apply it to the BO task as
 ```
@@ -71,7 +71,7 @@ python train.py \
     --enc-same
 ```
 
-with x in (1, 10) and m in (rcnp, cnp, acnp, convcnp).
+with x in `(1, 10)` and m in `(rcnp, cnp, acnp, convcnp)`.
 
 To rerun our GNP experiments, use
 ```
