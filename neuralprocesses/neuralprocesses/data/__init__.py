@@ -13,3 +13,4 @@ from .cancer_latent import *
 from .cancer_joint import *
 from .cancer_multi import *
 from .gp_rotate import *
+from .image import *
