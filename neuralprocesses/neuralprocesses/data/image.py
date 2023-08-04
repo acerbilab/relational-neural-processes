@@ -23,37 +23,50 @@ class ImageGenerator(DataGenerator):
         seed=0,
         num_tasks=2**14,
         batch_size=16,
-        num_context=UniformDiscrete(10, 500),
+        num_context=None,
         subset="train",
         device="cpu",
     ):
         super().__init__(dtype, seed, num_tasks, batch_size=batch_size, device=device)
 
-        self.num_context = convert(num_context, AbstractDistribution)
-        self.numpygen = np.random.default_rng(seed=seed)
-
-        assert subset in ["train", "test"]
-
+        # load image data
         if dataset == "mnist":
+            assert subset in ["train", "test"]
             data = datasets.MNIST(
                 root=rootdir,
                 train=(subset == "train"),
                 download=True,
                 transform=transforms.ToTensor()
             )
+        elif dataset == "mnist16":
+            assert subset in ["train", "test"]
+            transforms_list = [transforms.Resize(16), transforms.ToTensor()]
+            data = datasets.MNIST(
+                root=rootdir,
+                train=(subset == "train"),
+                download=True,
+                transform=transforms.Compose(transforms_list)
+            )
         else:
             raise ValueError(f'Unknown dataset {dataset}.')
 
+        # random image selection setup
         #torch.manual_seed(seed)
         #self.dataloader = DataLoader(data, batch_size=batch_size, shuffle=True)
         self.data = data
         self.data_inds = UniformDiscrete(0, len(data)-1)
 
+        # image properties
         image_size = data[0][0].shape[-1]
         self.n_tot = image_size**2
-        axis = torch.arange(image_size, dtype=torch.float32)
+        axis = torch.arange(image_size, dtype=torch.float32)/(image_size-1)
         grid = torch.stack((axis.repeat_interleave(image_size), axis.repeat(image_size)))
         self.grid = grid.to(device)
+
+        # random context selection setup
+        num_context = num_context or UniformDiscrete(int(self.n_tot/100), int(self.n_tot/2))
+        self.num_context = convert(num_context, AbstractDistribution)
+        self.numpygen = np.random.default_rng(seed=seed)
 
     def generate_batch(self):
         with B.on_device(self.device):

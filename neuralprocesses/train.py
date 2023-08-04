@@ -168,6 +168,11 @@ def main(**kw_args):
         type=str,
         choices=["sane", "cancer", "diff"]
     )
+    parser.add_argument(
+        "--image-dataset",
+        type=str,
+        choices=["mnist", "mnist16"],
+    )
     parser.add_argument("--patch", type=str)
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--enc-same", action="store_true")
@@ -265,6 +270,7 @@ def main(**kw_args):
     data_dir = args.data if args.mean_diff is None else f"{args.data}-{args.mean_diff}"
     data_dir = data_dir if args.eeg_mode is None else f"{args.data}-{args.eeg_mode}"
     data_dir = data_dir if args.cancer_obs_type is None else f"{args.data}-{args.cancer_obs_type}"
+    data_dir = data_dir if args.image_dataset is None else f"{args.data}-{args.image_dataset}"
 
     # Setup script.
     if not observe:
@@ -315,8 +321,8 @@ def main(**kw_args):
         "cholesky_retry_factor": 1e6,
         "fix_noise": None,
         "fix_noise_epochs": 3,
-        "width": 256,                                
-        "relational_width": 256,                                
+        "width": 256,
+        "relational_width": 256,
         "dim_relational_embeddings": 256,
         "dim_embedding": 256,
         "enc_same": args.enc_same,
@@ -336,6 +342,7 @@ def main(**kw_args):
         "num_basis_functions": args.num_basis_functions,  # default value 64
         "eeg_mode": args.eeg_mode,
         "cancer_obs_type": args.cancer_obs_type,
+        "image_dataset": args.image_dataset,
         "comparison_function": args.comparison_function,
         "non_equivariant_dim": args.non_equivariant_dim,
         "sparse": args.sparse,
