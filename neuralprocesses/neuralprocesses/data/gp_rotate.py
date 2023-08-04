@@ -1,11 +1,27 @@
 import lab as B
 import stheno
+import numpy as np
+from plum import convert
 import torch
 
 from .data import SyntheticGenerator, new_batch
 
 __all__ = ["GPGeneratorRotate"]
 
+
+def transform_to_euclidean(x):
+        r=torch.zeros_like(x)
+        r[:,0,:]=x[:,0,:]*torch.sin(x[:,1,:])*torch.cos(x[:,2,:])
+        r[:,1,:]=x[:,0,:]*torch.sin(x[:,1,:])*torch.sin(x[:,2,:])
+        r[:,2,:]=x[:,0,:]*torch.cos(x[:,1,:])
+        return r
+        
+def transform_to_spherical(x):
+        r=torch.zeros_like(x)
+        r[:,0,:]=torch.sqrt(torch.sum(x**2,axis=-2))
+        r[:,1,:]=torch.arccos(x[:,2,:]/r[:,0,:])/2*np.pi
+        r[:,2,:]=torch.sign(x[:,1,:])*torch.arccos(xc[:,0,:]/r[:,0,:])/np.pi
+        return r
 
 class GPGeneratorRotate(SyntheticGenerator):
     """GP generator.
@@ -33,15 +49,23 @@ class GPGeneratorRotate(SyntheticGenerator):
     def __init__(
         self,
         *args,
+        dtype,
+        seed=0,
         kernel=stheno.EQ().stretch(0.25),
-        pred_logpdf=False,
-        pred_logpdf_diag=False,
+        num_tasks=10**3,
+        batch_size=16,
+        num_context=UniformDiscrete(50, 200),
+        num_target=UniformDiscrete(100, 200),
+        device="cpu",
         **kw_args,
     ):
         self.kernel = kernel
-        self.pred_logpdf = pred_logpdf
-        self.pred_logpdf_diag = pred_logpdf_diag
-        super().__init__(*args, **kw_args)
+        super().__init__(dtype, seed, num_tasks, batch_size=batch_size, device=device)
+
+        self.num_context = convert(num_context, AbstractDistribution)
+
+        self.num_target = convert(num_target, AbstractDistribution)
+
 
     def generate_batch(self):
         """Generate a batch.
@@ -53,12 +77,14 @@ class GPGeneratorRotate(SyntheticGenerator):
         with B.on_device(self.device):
             set_batch, xcs, xc, nc, xts, xt, nt = new_batch(self, self.dim_y)
             
-
             # If `self.h` is specified, then we create a multi-output GP. Otherwise, we
             # use a simple regular GP.
+            xc_e=transform_to_euclidean(xc)
+            xt_e=transform_to_euclidean(xt)
             if self.h is None:
                 with stheno.Measure() as prior:
                     f = stheno.GP(self.kernel)
+
                     # Construct FDDs for the context and target points.
                     fc = f(xc, self.noise)
                     ft = f(xt, self.noise)
@@ -102,9 +128,15 @@ class GPGeneratorRotate(SyntheticGenerator):
 
             yc = yc_temp + torch.sum(xc_rotate.unsqueeze(2) ** 2 / mean_function_length_scale ** 2, axis=-1)
             yt = yt_temp + torch.sum(xt_rotate.unsqueeze(2) ** 2 / mean_function_length_scale ** 2, axis=-1)
+            # # Sample context and target set.
+            # self.state, yc, yt = prior.sample(self.state, fc, ft)
+            # yc = yc + torch.sqrt(torch.sum(xc**2,axis=-2)).unsqueeze(1)
+            # yt = yt + torch.sqrt(torch.sum(xt**2,axis=-2)).unsqueeze(1)
 
             # Make the new batch.
             batch = {}
             set_batch(batch, yc, yt)
 
             return batch
+
+
