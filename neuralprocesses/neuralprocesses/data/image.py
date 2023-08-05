@@ -24,27 +24,43 @@ class ImageGenerator(DataGenerator):
         num_tasks=2**14,
         batch_size=16,
         num_context=None,
+        load_data=True,
         subset="train",
         device="cpu",
     ):
         super().__init__(dtype, seed, num_tasks, batch_size=batch_size, device=device)
 
         # load image data
+        assert subset in ["train", "valid", "test"]
         if dataset == "mnist":
-            assert subset in ["train", "test"]
             data = datasets.MNIST(
                 root=rootdir,
-                train=(subset == "train"),
-                download=True,
+                train=not(subset == "test"),
+                download=load_data,
                 transform=transforms.ToTensor()
             )
         elif dataset == "mnist16":
-            assert subset in ["train", "test"]
             transforms_list = [transforms.Resize(16), transforms.ToTensor()]
             data = datasets.MNIST(
                 root=rootdir,
-                train=(subset == "train"),
-                download=True,
+                train=not(subset == "test"),
+                download=load_data,
+                transform=transforms.Compose(transforms_list)
+            )
+        elif dataset == "celeba32":
+            transforms_list = [transforms.Resize(32), transforms.CenterCrop(32), transforms.ToTensor()]
+            data = datasets.CelebA(
+                root=rootdir,
+                split=subset,
+                download=load_data,
+                transform=transforms.Compose(transforms_list)
+            )
+        elif dataset == "celeba16":
+            transforms_list = [transforms.Resize(16), transforms.CenterCrop(16), transforms.ToTensor()]
+            data = datasets.CelebA(
+                root=rootdir,
+                split=subset,
+                download=load_data,
                 transform=transforms.Compose(transforms_list)
             )
         else:
@@ -57,7 +73,7 @@ class ImageGenerator(DataGenerator):
         self.data_inds = UniformDiscrete(0, len(data)-1)
 
         # image properties
-        image_size = data[0][0].shape[-1]
+        self.dim_y, _, image_size = data[0][0].shape
         self.n_tot = image_size**2
         axis = torch.arange(image_size, dtype=torch.float32)/(image_size-1)
         grid = torch.stack((axis.repeat_interleave(image_size), axis.repeat(image_size)))
@@ -75,21 +91,20 @@ class ImageGenerator(DataGenerator):
             features = torch.cat([self.data[ind][0] for ind in inds])
 
             # target features
-            target_x = self.grid.repeat([self.batch_size, 1, 1])  # bs x 2 x ntot
-            target_y = features.reshape(self.batch_size, 1, -1).to(self.device)  # bs x 1 x ntot
+            target_x = self.grid.repeat([self.batch_size, 1, 1])
+            target_y = features.reshape(self.batch_size, self.dim_y, -1).to(self.device)
 
             # context features
             self.state, n_ctx = self.num_context.sample(self.state, self.int64)
             n_ctx = int(n_ctx)
 
             context_x = torch.zeros(self.batch_size, 2, n_ctx).to(self.device)
-            context_y = torch.zeros(self.batch_size, 1, n_ctx).to(self.device)
+            context_y = torch.zeros(self.batch_size, self.dim_y, n_ctx).to(self.device)
 
             for b in range(self.batch_size):
                 inds = self.numpygen.choice(self.n_tot, n_ctx, replace=False)
-                
-                context_x[b] = target_x[b, :, inds]  # 2 x ntcx
-                context_y[b] = target_y[b, :, inds]  # 1 x nctx
+                context_x[b] = target_x[b, :, inds]
+                context_y[b] = target_y[b, :, inds]
 
             # make batch dict
             batch = {}

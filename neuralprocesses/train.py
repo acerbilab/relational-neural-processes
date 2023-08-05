@@ -171,7 +171,7 @@ def main(**kw_args):
     parser.add_argument(
         "--image-dataset",
         type=str,
-        choices=["mnist", "mnist16"],
+        choices=["mnist", "mnist16", "celeba32", "celeba16"],
     )
     parser.add_argument("--patch", type=str)
     parser.add_argument("--seed", type=int, default=1)
@@ -395,11 +395,12 @@ def main(**kw_args):
         # See if the experiment constructed the particular flavour of the model already.
         model = config["model"]
     else:
+        dim_yc = config["dim_context"] if "dim_context" in config else (1,) * config["dim_y"]
         # Construct the model.
         if args.model == "cnp":
             model = nps.construct_gnp(
                 dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
+                dim_yc=dim_yc,
                 dim_yt=config["dim_y"],
                 dim_embedding=config["dim_embedding"],
                 enc_same=config["enc_same"],
@@ -411,7 +412,7 @@ def main(**kw_args):
         elif args.model == "rcnp":
             model = nps.construct_rnp(
                 dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
+                dim_yc=dim_yc,
                 dim_yt=config["dim_y"],
                 dim_relational_embedding=config["dim_relational_embeddings"],
                 enc_same=config["enc_same"],
@@ -449,7 +450,7 @@ def main(**kw_args):
         elif args.model == "rgnp":
             model = nps.construct_rnp(
                 dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
+                dim_yc=dim_yc,
                 dim_yt=config["dim_y"],
                 dim_relational_embedding=config["dim_relational_embeddings"],
                 enc_same=config["enc_same"],
@@ -469,7 +470,7 @@ def main(**kw_args):
         elif args.model == "fullrcnp":
             model = nps.construct_fullrnp(
                 dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
+                dim_yc=dim_yc,
                 dim_yt=config["dim_y"],
                 dim_embedding=config["dim_embedding"],
                 dim_relational_embedding=config["dim_relational_embeddings"],
@@ -488,7 +489,7 @@ def main(**kw_args):
         elif args.model == "fullrgnp":
             model = nps.construct_fullrnp(
                 dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
+                dim_yc=dim_yc,
                 dim_yt=config["dim_y"],
                 dim_embedding=config["dim_embedding"],
                 dim_relational_embedding=config["dim_relational_embeddings"],
@@ -522,7 +523,7 @@ def main(**kw_args):
         elif args.model == "gnp":
             model = nps.construct_gnp(
                 dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
+                dim_yc=dim_yc,
                 dim_yt=config["dim_y"],
                 dim_embedding=config["dim_embedding"],
                 enc_same=config["enc_same"],
@@ -535,7 +536,7 @@ def main(**kw_args):
         elif args.model == "np":
             model = nps.construct_gnp(
                 dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
+                dim_yc=dim_yc,
                 dim_yt=config["dim_y"],
                 dim_embedding=config["dim_embedding"],
                 enc_same=config["enc_same"],
@@ -548,7 +549,7 @@ def main(**kw_args):
         elif args.model == "acnp":
             model = nps.construct_agnp(
                 dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
+                dim_yc=dim_yc,
                 dim_yt=config["dim_y"],
                 dim_embedding=config["dim_embedding"],
                 enc_same=config["enc_same"],
@@ -561,7 +562,7 @@ def main(**kw_args):
         elif args.model == "agnp":
             model = nps.construct_agnp(
                 dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
+                dim_yc=dim_yc,
                 dim_yt=config["dim_y"],
                 dim_embedding=config["dim_embedding"],
                 enc_same=config["enc_same"],
@@ -575,7 +576,7 @@ def main(**kw_args):
         elif args.model == "anp":
             model = nps.construct_agnp(
                 dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
+                dim_yc=dim_yc,
                 dim_yt=config["dim_y"],
                 dim_embedding=config["dim_embedding"],
                 enc_same=config["enc_same"],
@@ -590,7 +591,7 @@ def main(**kw_args):
             model = nps.construct_convgnp(
                 points_per_unit=config["points_per_unit"],
                 dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
+                dim_yc=dim_yc,
                 dim_yt=config["dim_y"],
                 likelihood="het",
                 conv_arch=args.arch,
@@ -607,7 +608,7 @@ def main(**kw_args):
             model = nps.construct_convgnp(
                 points_per_unit=config["points_per_unit"],
                 dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
+                dim_yc=dim_yc,
                 dim_yt=config["dim_y"],
                 likelihood="lowrank",
                 conv_arch=args.arch,
@@ -633,7 +634,7 @@ def main(**kw_args):
             model = nps.construct_convgnp(
                 points_per_unit=config["points_per_unit"],
                 dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
+                dim_yc=dim_yc,
                 dim_yt=config["dim_y"],
                 likelihood="het",
                 conv_arch=args.arch,
@@ -651,7 +652,7 @@ def main(**kw_args):
             model = nps.construct_fullconvgnp(
                 points_per_unit=config["points_per_unit"],
                 dim_x=config["dim_x"],
-                dim_yc=(1,) * config["dim_y"],
+                dim_yc=dim_yc,
                 dim_yt=config["dim_y"],
                 conv_arch=args.arch,
                 unet_channels=config["unet_channels"],

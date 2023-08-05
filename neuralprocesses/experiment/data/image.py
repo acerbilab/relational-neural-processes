@@ -18,7 +18,8 @@ def setup(
     seeds=None
 ):
     config["dim_x"] = 2
-    config["dim_y"] = 1
+    config["dim_y"] = 1 if config["image_dataset"].startswith("mnist") else 3
+    config["dim_context"] = (config["dim_y"],)
 
     config["transform"] = None  # TODO: should be sigmoid
 
@@ -42,6 +43,8 @@ def setup(
         dataset,
         seed=this_seeds[0],
         num_tasks=num_tasks_train,
+        load_data=True,
+        subset="train",
         #num_context=UniformDiscrete(10, 400),  # use default: uni(ntot/2, ntot/100)
         device=device,
     )
@@ -51,17 +54,15 @@ def setup(
         dataset,
         seed=this_seeds[1],
         num_tasks=num_tasks_cv,
+        load_data=False,
+        subset="valid",
         #num_context=UniformDiscrete(10, 400),  # use default: uni(ntot/2, ntot/100)
         device=device,
     )
 
     # test setup
-    if dataset == "mnist":
-        n_ctx_list = [10, 100, 200, 400]
-    elif dataset == "mnist16":
-        n_ctx_list = [5, 20, 50, 100]
-    else:
-        raise ValueError(f"Unknown dataset {dataset}.")
+    n_min = int(gen_train.n_tot/100)
+    n_ctx_list = [n_min * mult for mult in [1, 10, 20, 50]]
 
     def gens_eval():
         return [
@@ -73,8 +74,9 @@ def setup(
                     dataset,
                     seed=30,
                     num_tasks=num_tasks_eval,
-                    num_context=UniformDiscrete(n_ctx, n_ctx),
+                    load_data=False,
                     subset="test",
+                    num_context=UniformDiscrete(n_ctx, n_ctx),
                     device=device,
                 ),
             )
