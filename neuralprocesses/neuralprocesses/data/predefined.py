@@ -3,6 +3,7 @@ from stheno import EQ, Matern52
 
 from .gp import GPGenerator
 from .gpsample import GPGeneratorSample
+from .gp_rotate import GPGeneratorRotate
 from .mixgp import MixtureGPGenerator
 from .mixture import MixtureGenerator
 from .sawtooth import SawtoothGenerator
@@ -108,6 +109,17 @@ def construct_predefined_gens(
             ("bo_sumprod", "sumprod"),
         ]
     }
+    gens["gp_rotate"] = GPGeneratorRotate(
+            dtype,
+            seed=seed,
+            noise=0.05,
+            kernel=EQ().stretch(factor * 1),
+            num_context=UniformDiscrete(1, 30 * dim_x),
+            num_target=UniformDiscrete(50 * dim_x, 50 * dim_x),
+            pred_logpdf=pred_logpdf,
+            pred_logpdf_diag=pred_logpdf_diag,
+            **config,
+        )
     # Previously, the maximum number of context points was `75 * dim_x`. However, if
     # `dim_x == 1`, then this is too high. We therefore change that case, and keep all
     # other cases the same.

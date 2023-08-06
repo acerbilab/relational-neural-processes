@@ -1,7 +1,9 @@
-from functools import partial
+"""from functools import partial
+import lab as B
 
 import neuralprocesses.torch as nps
 import torch
+from ...neuralprocesses.dist.uniform import UniformDiscrete, UniformContinuous
 
 from .util import register_data
 
@@ -9,7 +11,7 @@ __all__ = []
 
 
 def setup(
-    args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device, seeds
+    name, args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device, seeds
 ):
     config["dim_x"] = args.dim_x
     config["dim_y"] = args.dim_y
@@ -18,8 +20,8 @@ def setup(
         x_range_context = config["x_range_context"]
         x_range_target = config["x_range_context"]
     else:
-        x_range_context = (0, 1)
-        x_range_target = (0, 1)
+        x_range_context = (-1, 1)
+        x_range_target = (-1, 1)
 
     # Architecture choices specific for the GP experiments:
     # TODO: We should use a stride of 1 in the first layer, but for compatibility
@@ -49,58 +51,74 @@ def setup(
         1: {"range": (-2, 4), "axvline": [2]},
         2: {"range": ((-2, 2), (-2, 2))},
     }
-    config["transform"] = None
-
-    gen_train = nps.GPGeneratorRotate(
-        dtype=torch.float32,
+    factor = B.sqrt(args.dim_x)
+    config = {
+        "num_tasks": args.num_tasks,
+        "batch_size": args.batch_size,
+        "dist_x_context": UniformContinuous(*((x_range_context,) * args.dim_x)),
+        "dist_x_target": UniformContinuous(*((x_range_target,) * args.dim_x)),
+        "dim_y": args.dim_y,
+        "device": args.device,
+        "transform":None
+    }
+    gen_train = nps.GPGeneratorRotate(            
+        torch.float32,
         seed=int(seeds[0]),
-        batch_size=args.batch_size,
-        num_tasks=num_tasks_train,
-        dim_x=args.dim_x,
-        dim_y=args.dim_y
+        noise=0.05,
+        kernel=EQ().stretch(factor * 1),
+        num_context=UniformDiscrete(1, 30 * args.dim_x),
+        num_target=UniformDiscrete(50 * args.dim_x, 50 * args.dim_x),         
+        pred_logpdf=False,
+        pred_logpdf_diag=False,
+        **config,
     )
 
     gen_cv = lambda: nps.GPGeneratorRotate(
-        dtype=torch.float32,
-        seed=int(seeds[1]),  # Use a different seed!
-        batch_size=args.batch_size,
-        num_tasks=num_tasks_cv,
-        dim_x=args.dim_x,
-        dim_y=args.dim_y
+        torch.float32,
+        seed=int(seeds[0]),
+        noise=0.05,
+        kernel=EQ().stretch(factor * 1),
+        num_context=UniformDiscrete(1, 30 * args.dim_x),
+        num_target=UniformDiscrete(50 * args.dim_x, 50 * args.dim_x),         
+        pred_logpdf=False,
+        pred_logpdf_diag=False,
+        **config,
     )
 
     def gens_eval():
         return [
             (
                 eval_name,
-                nps.construct_predefined_gens(
+                nps.GPGeneratorRotate(
                     torch.float32,
-                    seed=30,  # Use yet another seed!
-                    batch_size=args.batch_size,
-                    num_tasks=num_tasks_eval,
-                    dim_x=args.dim_x,
-                    dim_y=args.dim_y,
-                    pred_logpdf=True,
-                    pred_logpdf_diag=True,
-                    device=device,
-                    x_range_context=x_range_context,
-                    x_range_target=x_range_target,
-                    mean_diff=config["mean_diff"],
-                )[args.data],
+                    seed=int(seeds[0]),
+                    noise=0.05,
+                    kernel=EQ().stretch(factor * 1),
+                    num_context=UniformDiscrete(1, 30 * args.dim_x),
+                    num_target=UniformDiscrete(50 * args.dim_x, 50 * args.dim_x),         
+                    pred_logpdf=False,
+                    pred_logpdf_diag=False,
+                    **config,
+                ),
             )
             for eval_name, x_range_context, x_range_target in [
-                ("interpolation in training range", (0, 1), (0, 1)),
-                ("interpolation beyond training range", (0, 1), (0, 1)),
-                ("extrapolation beyond training range", (0, 1), (0, 1)),
+                ("interpolation in training range", (-2, 2), (-2, 2)),
+                ("interpolation beyond training range", (2, 6), (2, 6)),
+                ("extrapolation beyond training range", (-2, 2), (2, 6)),
             ]
         ]
 
     return gen_train, gen_cv, gens_eval
 
 
-register_data(
+names = [
     "gp_rotate",
-    setup,
-    requires_dim_x=True,
-    requires_dim_y=True,
-)
+]
+
+for name in names:
+    register_data(
+        name,
+        partial(setup, name),
+        requires_dim_x=True,
+        requires_dim_y=True,
+    )"""

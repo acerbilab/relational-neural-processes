@@ -1,13 +1,12 @@
 import lab as B
 import stheno
-import numpy as np
-from plum import convert
 import torch
 
 from .data import SyntheticGenerator, new_batch
 
 __all__ = ["GPGeneratorRotate"]
 
+"""
 
 def transform_to_euclidean(x):
         r=torch.zeros_like(x)
@@ -23,6 +22,7 @@ def transform_to_spherical(x):
         r[:,2,:]=torch.sign(x[:,1,:])*torch.arccos(xc[:,0,:]/r[:,0,:])/np.pi
         return r
 
+"""
 class GPGeneratorRotate(SyntheticGenerator):
     """GP generator.
 
@@ -49,23 +49,15 @@ class GPGeneratorRotate(SyntheticGenerator):
     def __init__(
         self,
         *args,
-        dtype,
-        seed=0,
         kernel=stheno.EQ().stretch(0.25),
-        num_tasks=10**3,
-        batch_size=16,
-        num_context=UniformDiscrete(50, 200),
-        num_target=UniformDiscrete(100, 200),
-        device="cpu",
+        pred_logpdf=True,
+        pred_logpdf_diag=True,
         **kw_args,
     ):
         self.kernel = kernel
-        super().__init__(dtype, seed, num_tasks, batch_size=batch_size, device=device)
-
-        self.num_context = convert(num_context, AbstractDistribution)
-
-        self.num_target = convert(num_target, AbstractDistribution)
-
+        self.pred_logpdf = pred_logpdf
+        self.pred_logpdf_diag = pred_logpdf_diag
+        super().__init__(*args, **kw_args)
 
     def generate_batch(self):
         """Generate a batch.
@@ -76,15 +68,12 @@ class GPGeneratorRotate(SyntheticGenerator):
         """
         with B.on_device(self.device):
             set_batch, xcs, xc, nc, xts, xt, nt = new_batch(self, self.dim_y)
-            
+
             # If `self.h` is specified, then we create a multi-output GP. Otherwise, we
             # use a simple regular GP.
-            xc_e=transform_to_euclidean(xc)
-            xt_e=transform_to_euclidean(xt)
             if self.h is None:
                 with stheno.Measure() as prior:
                     f = stheno.GP(self.kernel)
-
                     # Construct FDDs for the context and target points.
                     fc = f(xc, self.noise)
                     ft = f(xt, self.noise)
@@ -109,33 +98,35 @@ class GPGeneratorRotate(SyntheticGenerator):
                         self.noise,
                     )
 
-            dim_x = xc.shape[-1]
-
-            M = torch.randn(dim_x, dim_x)
-            rotate, _ = torch.linalg.qr(M)
-
-            if torch.det(rotate) < 0:
-                rotate[:, 0] = -rotate[:, 0]
-
-            rotate = B.cast(xc.dtype, rotate).to(self.device)
-
-            xc_rotate = B.matmul(xc, rotate)
-            xt_rotate = B.matmul(xt, rotate)
+            # dim_x = xc.shape[-1]
+            #
+            # M = torch.randn(dim_x, dim_x)
+            # rotate, _ = torch.linalg.qr(M)
+            #
+            # if torch.det(rotate) < 0:
+            #     rotate[:, 0] = -rotate[:, 0]
+            #
+            # rotate = B.cast(xc.dtype, rotate).to(self.device)
+            #
+            # xc_rotate = B.matmul(xc, rotate)
+            # xt_rotate = B.matmul(xt, rotate)
 
             # Sample context and target set.
             self.state, yc_temp, yt_temp = prior.sample(self.state, fc, ft)
-            mean_function_length_scale = B.cast(xc.dtype, B.linspace(0.5, 2, dim_x))
-
-            yc = yc_temp + torch.sum(xc_rotate.unsqueeze(2) ** 2 / mean_function_length_scale ** 2, axis=-1)
-            yt = yt_temp + torch.sum(xt_rotate.unsqueeze(2) ** 2 / mean_function_length_scale ** 2, axis=-1)
-            # # Sample context and target set.
-            # self.state, yc, yt = prior.sample(self.state, fc, ft)
-            # yc = yc + torch.sqrt(torch.sum(xc**2,axis=-2)).unsqueeze(1)
-            # yt = yt + torch.sqrt(torch.sum(xt**2,axis=-2)).unsqueeze(1)
+            yc = yc_temp + torch.exp(-torch.sum(xc.unsqueeze(2)**2,axis=-2)/2)
+            yt = yt_temp + torch.exp(-torch.sum(xt.unsqueeze(2)**2,axis=-2)/2)
 
             # Make the new batch.
             batch = {}
             set_batch(batch, yc, yt)
+
+            # Compute predictive logpdfs.
+            if self.pred_logpdf or self.pred_logpdf_diag:
+                post = prior | (fc, yc_temp)
+            if self.pred_logpdf:
+                batch["pred_logpdf"] = post(ft).logpdf(yt_temp)
+            if self.pred_logpdf_diag:
+                batch["pred_logpdf_diag"] = post(ft).diagonalise().logpdf(yt_temp)
 
             return batch
 
