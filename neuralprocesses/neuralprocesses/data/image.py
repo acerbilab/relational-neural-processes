@@ -60,6 +60,14 @@ class ImageGenerator(DataGenerator):
                 download=load_data,
                 transform=transforms.Compose(transforms_list)
             )
+        elif dataset == "mnist16_trans":
+            transforms_list = [transforms.Pad(padding=5), transforms.RandomCrop(size=(28, 28)), transforms.Resize(16), transforms.ToTensor()]
+            data = datasets.MNIST(
+                root=rootdir,
+                train=not(subset == "test"),
+                download=load_data,
+                transform=transforms.Compose(transforms_list)
+            )
         elif dataset == "celeba32":
             transforms_list = [transforms.Resize(32), transforms.CenterCrop(32), transforms.ToTensor()]
             data = datasets.CelebA(
