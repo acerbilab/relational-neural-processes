@@ -2,6 +2,7 @@ import lab as B
 import numpy as np
 from plum import convert
 import torch
+import torchvision
 
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
@@ -32,6 +33,7 @@ class ImageGenerator(DataGenerator):
 
         # load image data
         assert subset in ["train", "valid", "test"]
+
         if dataset == "mnist":
             data = datasets.MNIST(
                 root=rootdir,
@@ -39,6 +41,17 @@ class ImageGenerator(DataGenerator):
                 download=load_data,
                 transform=transforms.ToTensor()
             )
+        elif dataset == "mnist_trans":
+            cropper = torchvision.transforms.RandomCrop(size=(28, 28))
+            padder = torchvision.transforms.Pad(padding=5)
+            totensor = transforms.ToTensor()
+            func = lambda x: totensor(cropper(padder(x)))
+            data = datasets.MNIST(
+		root=rootdir,
+		train=not(subset == "test"),
+		download=load_data,
+		transform=func
+	    )
         elif dataset == "mnist16":
             transforms_list = [transforms.Resize(16), transforms.ToTensor()]
             data = datasets.MNIST(
