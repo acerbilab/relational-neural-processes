@@ -23,6 +23,8 @@ def transform_to_spherical(x):
         return r
 
 """
+
+
 class GPGeneratorRotate(SyntheticGenerator):
     """GP generator.
 
@@ -68,6 +70,7 @@ class GPGeneratorRotate(SyntheticGenerator):
         """
         with B.on_device(self.device):
             set_batch, xcs, xc, nc, xts, xt, nt = new_batch(self, self.dim_y)
+            
 
             # If `self.h` is specified, then we create a multi-output GP. Otherwise, we
             # use a simple regular GP.
