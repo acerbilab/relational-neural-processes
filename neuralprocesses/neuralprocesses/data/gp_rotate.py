@@ -116,8 +116,8 @@ class GPGeneratorRotate(SyntheticGenerator):
 
             # Sample context and target set.
             self.state, yc_temp, yt_temp = prior.sample(self.state, fc, ft)
-            yc = yc_temp + torch.exp(-torch.sum(xc.unsqueeze(2)**2,axis=-2)/2)
-            yt = yt_temp + torch.exp(-torch.sum(xt.unsqueeze(2)**2,axis=-2)/2)
+            yc = yc_temp + torch.sum(xc.unsqueeze(2)**2,axis=-2)
+            yt = yt_temp + torch.sum(xt.unsqueeze(2)**2,axis=-2)
 
             # Make the new batch.
             batch = {}
