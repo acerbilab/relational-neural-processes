@@ -81,6 +81,7 @@ def main(**kw_args):
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=str, nargs="*", default=["_experiments"])
     parser.add_argument("--subdir", type=str, nargs="*")
+    parser.add_argument("--datadir", type=str, nargs="*", default=["_datasets"])
     parser.add_argument("--device", type=str)
     parser.add_argument("--gpu", type=int)
     parser.add_argument("--checkpoint-every", type=int, default=None)
