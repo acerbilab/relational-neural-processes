@@ -129,8 +129,10 @@ class GPGeneratorRotate(SyntheticGenerator):
                 Xtemp=torch.from_numpy(normalsampler.sample(dimx).astype(float))
                 for jj in range(0,j):
                     Xtemp=Xtemp-X[jj,:]*B.sum(Xtemp*X[jj,:])/B.sum(X[jj,:]**2)#gram schmidt
-                Xtemp=Xtemp/B.sum(Xtemp**2)#renormalise
+                Xtemp=Xtemp/B.sqrt(B.sum(Xtemp**2))#renormalise
                 X[j,:]=Xtemp
+                
+            X=torch.matmul(X,X)#we square the matrix as it ensures the rotation is direct
             #print(xc.shape)
             #print(xc[0,0,0])
             #print(X[0,0])
@@ -138,15 +140,16 @@ class GPGeneratorRotate(SyntheticGenerator):
             xt_rotate=torch.matmul(xt,X)#we rotate the x to apply the function
             #in the end, the matrix X is a random rotation matrix
             self.state, yc_temp, yt_temp = prior.sample(self.state, fc, ft)
-            if dimx==2:
-                mean_function_length_scale=[4,0.5]
-            elif dimx=3:
-                mean_function_length_scale=[4,0.5,2]
-            elif dimx>3:
-                if dimx % 2 ==0:
-                    mean_function_length_scale=B.concat(torch.tensor([4,0.5,2,1]),torch.tensor([0.3,3]).repeat((dimx-4)/2),0)
-                else:
-                    mean_function_length_scale=B.concat(torch.tensor([4,0.5,2]),torch.tensor([0.3,3]).repeat((dimx-3)/2),0)
+            mean_function_length_scale = torch.linspace(0.5,2,dimx)
+            #if dimx==2:
+            #    mean_function_length_scale=[4,0.5]
+            #elif dimx=3:
+            #    mean_function_length_scale=[4,0.5,2]
+            #elif dimx>3:
+            #    if dimx % 2 ==0:
+            #        mean_function_length_scale=B.concat(torch.tensor([4,0.5,2,1]),torch.tensor([0.3,3]).repeat((dimx-4)/2),0)
+            #    else:
+            #        mean_function_length_scale=B.concat(torch.tensor([4,0.5,2]),torch.tensor([0.3,3]).repeat((dimx-3)/2),0)
             yc = yc_temp + torch.sum(xc_rotate.unsqueeze(2)**2/mean_function_length_scale**2,axis=-2)
             yt = yt_temp + torch.sum(xt_rotate.unsqueeze(2)**2/mean_function_length_scale**2,axis=-2)
             
