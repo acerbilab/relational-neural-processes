@@ -5,3 +5,4 @@ from .fullconvgnp import *
 from .gnp import *
 from .fullrnp import *
 from .rnp import *
+from .arnp import *
