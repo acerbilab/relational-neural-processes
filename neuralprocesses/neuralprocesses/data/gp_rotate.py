@@ -147,8 +147,8 @@ class GPGeneratorRotate(SyntheticGenerator):
                     factor=B.concat[torch.tensor([4,0.5,2,1]),torch.tensor([0.3,3]).repeat((dimx-4)/2),0)
                 else:
                     factor=B.concat[torch.tensor([4,0.5,2]),torch.tensor([0.3,3]).repeat((dimx-3)/2),0)
-            yc = yc_temp + 3*torch.sin(torch.sum(xc_rotate.unsqueeze(2)**2/factor,axis=-2)/3)
-            yt = yt_temp + 3*torch.sin(torch.sum(xt_rotate.unsqueeze(2)**2/factor,axis=-2)/3)
+            yc = yc_temp + 3*torch.sum(xc_rotate.unsqueeze(2)**2/factor,axis=-2)
+            yt = yt_temp + 3*torch.sum(xt_rotate.unsqueeze(2)**2/factor,axis=-2)
             
             #yc = yc_temp + 3*torch.sin(torch.sum(xc.unsqueeze(2)**2,axis=-2)/3)
             #yt = yt_temp + 3*torch.sin(torch.sum(xt.unsqueeze(2)**2,axis=-2)/3)
