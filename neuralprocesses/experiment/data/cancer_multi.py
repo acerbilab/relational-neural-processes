@@ -5,7 +5,7 @@ from .util import register_data
 
 __all__ = []
 
-def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device, this_seeds=None):
+def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device, seeds=None):
     config["default"]["rate"] = 1e-4
     config["default"]["epochs"] = 200
     config["dim_x"] = 3
@@ -25,7 +25,7 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
     config["num_basis_functions"] = 32
 
 
-    this_seeds = this_seeds or [10, 20]
+    this_seeds = seeds or [10, 20]
 
     gen_train = nps.CancerMultiGenerator(
         torch.float32,
