@@ -139,16 +139,16 @@ class GPGeneratorRotate(SyntheticGenerator):
             #in the end, the matrix X is a random rotation matrix
             self.state, yc_temp, yt_temp = prior.sample(self.state, fc, ft)
             if dimx==2:
-                factor=[4,0.5]
+                lengthscale=[4,0.5]**2
             elif dimx=3:
-                factor=[4,0.5,2]
+                lengthscale=[4,0.5,2]**2
             elif dimx>3:
                 if dimx % 2 ==0:
-                    factor=B.concat[torch.tensor([4,0.5,2,1]),torch.tensor([0.3,3]).repeat((dimx-4)/2),0)
+                    lengthscale=B.concat(torch.tensor([4,0.5,2,1]),torch.tensor([0.3,3]).repeat((dimx-4)/2),0)**2
                 else:
-                    factor=B.concat[torch.tensor([4,0.5,2]),torch.tensor([0.3,3]).repeat((dimx-3)/2),0)
-            yc = yc_temp + torch.sum(xc_rotate.unsqueeze(2)**2/factor,axis=-2)
-            yt = yt_temp + torch.sum(xt_rotate.unsqueeze(2)**2/factor,axis=-2)
+                    lengthscale=B.concat(torch.tensor([4,0.5,2]),torch.tensor([0.3,3]).repeat((dimx-3)/2),0)**2
+            yc = yc_temp + torch.sum(xc_rotate.unsqueeze(2)**2/lengthscale,axis=-2)
+            yt = yt_temp + torch.sum(xt_rotate.unsqueeze(2)**2/lengthscale,axis=-2)
             
             #yc = yc_temp + 3*torch.sin(torch.sum(xc.unsqueeze(2)**2,axis=-2)/3)
             #yt = yt_temp + 3*torch.sin(torch.sum(xt.unsqueeze(2)**2,axis=-2)/3)
