@@ -1,5 +1,5 @@
 from functools import partial
-
+import wbml.out as out
 import neuralprocesses.torch as nps
 import torch
 
@@ -18,8 +18,18 @@ def setup(
         x_range_context = config["x_range_context"]
         x_range_target = config["x_range_context"]
     else:
-        x_range_context = (-1, 1)
-        x_range_target = (-1, 1)
+        if name in ["bo_fixed", "bo_matern", "bo_single", "bo_sumprod"]:
+            x_range_context = (-1, 1)
+            x_range_target = (-1, 1)
+        elif name == "gp_rotate":
+            x_range_context = (-4, 0)
+            x_range_target = (-4, 0)
+        else:
+            x_range_context = (-2, 2)
+            x_range_target = (-2, 2)
+
+    out.kv("context training range", x_range_context)
+    out.kv("target training range", x_range_target)
 
     # Architecture choices specific for the GP experiments:
     # TODO: We should use a stride of 1 in the first layer, but for compatibility
@@ -75,6 +85,7 @@ def setup(
         dim_y=args.dim_y,
         pred_logpdf=True,
         pred_logpdf_diag=True,
+        # comment this out later
         x_range_context=x_range_context,
         x_range_target=x_range_target,
         device=device,
@@ -82,6 +93,24 @@ def setup(
     )[name]
 
     def gens_eval():
+        if args.data in ["bo_fixed", "bo_matern", "bo_single", "bo_sumprod"]:
+            x_range_context_int = (-1, 1)
+            x_range_target_int = (-1, 1)
+            # check if BO tasks need OOID
+            x_range_context_ooid = (-1, 1)
+            x_range_target_ooid = (-1, 1)
+        elif args.data == "gp_rotate":
+            x_range_context_int = (-4, 0)
+            x_range_target_int = (-4, 0)
+            x_range_context_ooid = (0, 4)
+            x_range_target_ooid = (0, 4)
+
+        else:
+            x_range_context_int = (-2, 2)
+            x_range_target_int = (-2, 2)
+            x_range_context_ooid = (2, 6)
+            x_range_target_ooid = (2, 6)
+
         return [
             (
                 eval_name,
@@ -101,9 +130,10 @@ def setup(
                 )[args.data],
             )
             for eval_name, x_range_context, x_range_target in [
-                ("interpolation in training range", (-2, 2), (-2, 2)),
-                ("interpolation beyond training range", (2, 6), (2, 6)),
-                ("extrapolation beyond training range", (-2, 2), (2, 6)),
+                ("interpolation in training range", x_range_context_int, x_range_target_int),
+                ("interpolation beyond training range", x_range_context_ooid, x_range_target_ooid),
+                # for now we don't care about EXT
+                # ("extrapolation beyond training range", (-2, 2), (2, 6)),
             ]
         ]
 
@@ -123,6 +153,7 @@ names = [
     "bo_matern",
     "bo_single",
     "bo_sumprod",
+    "gp_rotate",
 ]
 
 for name in names:
