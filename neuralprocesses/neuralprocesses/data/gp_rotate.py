@@ -139,14 +139,14 @@ class GPGeneratorRotate(SyntheticGenerator):
             #in the end, the matrix X is a random rotation matrix
             self.state, yc_temp, yt_temp = prior.sample(self.state, fc, ft)
             if dimx==2:
-                mean_function_length_scale=[4,0.5]**2
+                mean_function_length_scale=[4,0.5]
             elif dimx=3:
-                mean_function_length_scale=[4,0.5,2]**2
+                mean_function_length_scale=[4,0.5,2]
             elif dimx>3:
                 if dimx % 2 ==0:
-                    mean_function_length_scale=B.concat(torch.tensor([4,0.5,2,1]),torch.tensor([0.3,3]).repeat((dimx-4)/2),0)**2
+                    mean_function_length_scale=B.concat(torch.tensor([4,0.5,2,1]),torch.tensor([0.3,3]).repeat((dimx-4)/2),0)
                 else:
-                    mean_function_length_scale=B.concat(torch.tensor([4,0.5,2]),torch.tensor([0.3,3]).repeat((dimx-3)/2),0)**2
+                    mean_function_length_scale=B.concat(torch.tensor([4,0.5,2]),torch.tensor([0.3,3]).repeat((dimx-3)/2),0)
             yc = yc_temp + torch.sum(xc_rotate.unsqueeze(2)**2/mean_function_length_scale**2,axis=-2)
             yt = yt_temp + torch.sum(xt_rotate.unsqueeze(2)**2/mean_function_length_scale**2,axis=-2)
             
