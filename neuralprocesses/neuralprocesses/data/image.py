@@ -15,6 +15,44 @@ __all__ = ["ImageGenerator"]
 
 
 class ImageGenerator(DataGenerator):
+    """Image data generator.
+
+    Args:
+        dtype (dtype): Data type.
+        rootdir (str): Root or image dataset directory.
+        dataset (str): Image data used to construct the interpolation tasks. Must be in
+            "mnist", "mnist_trans", "mnist16", "mnist16_trans", "celeba16", "celeba32".
+        seed (int, optional): Seed. Defaults to 0.
+        num_tasks (int, optional): Number of batches in an epoch. Defaults to 2^14.
+        batch_size (int, optional): Number of tasks per batch. Defaults to 16.
+        num_context (:class:`neuralprocesses.dist.dist.AbstractDistribution`, optional):
+            Distribution of the number of context points. Defaults to a uniform
+            distribution over $[n/100, n/2]$, where n denotes the image size in pixels.
+        load_data (bool, optional): Load image data to dataset directory if not loaded.
+            Defaults to `True`.
+        subset (str, optional): Dataset partition. Must be in "train", "valid", "test".
+            Defaults to "train".
+        device (str, optional): Device. Defaults to "cpu".
+
+    Attributes:
+        dtype (dtype): Data type.
+        float64 (dtype): Floating point version of the data type.
+        int64 (dtype): Integral version of the data type.
+        seed (int): Seed.
+        batch_size (int): Number of tasks per batch.
+        num_batches (int): Number of batches in an epoch.
+        device (str): Device.
+        state (random state): Random state.
+        numpygen (:class:`numpy.random.Generator`): Random number generator.
+        num_context (:class:`neuralprocesses.dist.dist.AbstractDistribution`):
+            Distribution of the number of context points.
+        data (:class:`torchvision.datasets.VisionDataset`): Loaded image data.
+        data_inds (:class:`neuralprocesses.dist.uniform.UniformDiscrete`):
+            Distribution used in image selection.
+        dim_y (int): Number of channels.
+        n_tot (int): Number of pixels.
+        grid (`torch.Tensor`): Pixel coordinates.
+    """
 
     def __init__(
         self,
