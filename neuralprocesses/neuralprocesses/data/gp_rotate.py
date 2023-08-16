@@ -104,7 +104,7 @@ class GPGeneratorRotate(SyntheticGenerator):
             # Sample context and target set.
             self.state, yc_temp, yt_temp = prior.sample(self.state, fc, ft)
             mean_function_length_scale = B.cast(xc.dtype, B.linspace(0.5, 2, dim_x))
-            print(xc.shape)
+
 
             yc = yc_temp + torch.sum(xc_rotate.unsqueeze(2) ** 2 / mean_function_length_scale ** 2, axis=-2)
             yt = yt_temp + torch.sum(xt_rotate.unsqueeze(2) ** 2 / mean_function_length_scale ** 2, axis=-2)
