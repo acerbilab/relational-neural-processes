@@ -14,6 +14,16 @@ def setup(
     config["dim_x"] = args.dim_x
     config["dim_y"] = args.dim_y
 
+    # k is for sparse FullRCNP, we set 0.8 as the ratio
+    ratio = 0.1
+    if name in ["eq", "matern", "weakly-periodic"]:
+        config["k"] = int(30 * args.dim_x * ratio)
+    else:
+        if args.dim_x == 1:
+            config["k"] = 30 * ratio
+        else:
+            config["k"] = int(75 * args.dim_x * ratio)
+
     if "x_range_context" in config.keys():
         x_range_context = config["x_range_context"]
         x_range_target = config["x_range_context"]

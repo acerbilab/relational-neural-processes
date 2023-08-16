@@ -7,6 +7,7 @@ from .mixgp import MixtureGPGenerator
 from .mixture import MixtureGenerator
 from .sawtooth import SawtoothGenerator
 from ..dist.uniform import UniformDiscrete, UniformContinuous
+from .gp_rotate import GPGeneratorRotate
 
 __all__ = ["construct_predefined_gens"]
 
@@ -18,8 +19,8 @@ def construct_predefined_gens(
     num_tasks=2**14,
     dim_x=1,
     dim_y=1,
-    x_range_context=(-1, 1),
-    x_range_target=(-1, 1),
+    x_range_context=(-2, 2),
+    x_range_target=(-2, 2),
     mean_diff=0.0,
     pred_logpdf=True,
     pred_logpdf_diag=True,
@@ -149,6 +150,19 @@ def construct_predefined_gens(
             **config,
         ),
         seed=seed,
+    )
+
+    gens["gp_rotate"] = GPGeneratorRotate(
+        dtype,
+        seed=seed,
+        noise=0.05,
+        kernel=EQ().stretch(factor * 1),
+        # We need to decide this number
+        num_context=UniformDiscrete(1, 100),
+        num_target=UniformDiscrete(50 * dim_x, 50 * dim_x),
+        pred_logpdf=pred_logpdf,
+        pred_logpdf_diag=pred_logpdf_diag,
+        **config,
     )
 
     for i, kernel in enumerate(kernels.keys()):
