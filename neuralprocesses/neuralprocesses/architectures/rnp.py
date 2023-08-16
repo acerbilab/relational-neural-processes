@@ -24,7 +24,7 @@ def construct_rnp(
     width=256,
     relational_width=64,
     likelihood="lowrank",
-    num_basis_functions=512,
+    num_basis_functions=64,
     dim_lv=0,
     lv_likelihood="het",
     transform=None,
@@ -33,8 +33,9 @@ def construct_rnp(
     comparison_function="difference",
     relational_encoding_type="simple",
     non_equivariant_dim=None,
+    k=50,
 ):
-    """A Slim Relational Neural Process.
+    """A Simple Relational Neural Process.
 
     Args:
         non_equivariant_dim: [1] means the second dimension does not need relational encoding
@@ -100,84 +101,135 @@ def construct_rnp(
         num_basis_functions=num_basis_functions,
         dtype=dtype,
     )
-
-    def construct_relational_mlp(dim_yci):
-        if relational_encoding_type == "simple":
-            if comparison_function == "distance":
-                in_dim = 1 + dim_yci
-            elif comparison_function == "partial_distance":
-                if non_equivariant_dim is None:
-                    raise RuntimeError("you need to specify non-equivariant dim!")
-                in_dim = 1 + dim_yci + len(non_equivariant_dim)
+    if attention:
+        def construct_attentive_relational_mlp(dim_yci):
+            # TODO add support for full RCNP and partial encoding
+            if relational_encoding_type == "simple":
+                if comparison_function == "distance":
+                    in_dim = 1 + dim_yci
+                elif comparison_function == "partial_distance":
+                    raise NotImplementedError
+                else:
+                    in_dim = dim_x + dim_yci
             else:
-                in_dim = dim_x + dim_yci
-        else:
-            if comparison_function == "distance":
-                in_dim = 2 + 2 * dim_yci
-            elif comparison_function == "partial_distance":
-                if non_equivariant_dim is None:
-                    raise RuntimeError("you need to specify non-equivariant dim!")
-                in_dim = 2 + 2 * dim_yci + len(non_equivariant_dim)
-            elif comparison_function == "partial_difference":
-                if non_equivariant_dim is None:
-                    raise RuntimeError("you need to specify non-equivariant dim!")
-                in_dim = (
-                    2 * (dim_x - len(non_equivariant_dim))
-                    + 2 * dim_yci
-                    + len(non_equivariant_dim)
-                )
-            else:
-                in_dim = 2 * dim_x + 2 * dim_yci
+                raise NotImplementedError
 
-        return nps.RelationalMLP(
-            in_dim=in_dim,
-            relational_out_dim=dim_relational_embedding,
-            num_layers=num_relational_enc_layers,
-            width=relational_width,
-            dtype=dtype,
-            comparison_function=comparison_function,
-            relational_encoding_type=relational_encoding_type,
-            non_equivariant_dim=non_equivariant_dim,
-        )
+            return nps.RelationalAttention(
+                dim_x=dim_x,
+                dim_y=dim_yci,
+                in_dim=in_dim,
+                relational_out_dim=dim_relational_embedding,
+                dim_embedding=dim_embedding,
+                num_relational_enc_layers=num_relational_enc_layers,
+                num_enc_layers=num_enc_layers,
+                width=relational_width,
+                dtype=dtype,
+                comparison_function=comparison_function,
+                relational_encoding_type=relational_encoding_type,
+                non_equivariant_dim=non_equivariant_dim,
+                num_heads=attention_num_heads
+            )
 
-    if len(dim_yc) < 2 or enc_same:
-        relational_encoder = construct_relational_mlp(dim_yc[0])
-        encoder = nps.Chain(
-            nps.RepeatForAggregateInputs(
-                nps.RelationalEncode(relational_encoder, encode_target=True)
-            ),
-            nps.DeterministicLikelihood(),
-        )
-    else:
-        # if enc_same=False we need multiple relational encoders
-        relational_encoder = [construct_relational_mlp(dim_yci) for dim_yci in dim_yc]
-        encoder = nps.Chain(
-            nps.RepeatForAggregateInputs(
-                nps.Chain(
-                    nps.Copy(len(dim_yc)),
-                    nps.Parallel(
-                        *(
-                            nps.RelationalEncode(
-                                relational_encoder[ii], encode_target=True, out_index=ii
-                            )
-                            for ii in range(len(dim_yc))
-                        )
-                    ),
-                    nps.ConcatRelational(),
+        # TODO construct encoder
+        if len(dim_yc) < 2 or enc_same:
+            relational_encoder = construct_attentive_relational_mlp(dim_yc[0])
+            encoder = nps.Chain(
+                nps.RepeatForAggregateInputs(
+                    nps.RelationalEncode(relational_encoder, encode_target=True)
                 ),
-            ),
-            nps.DeterministicLikelihood(),
-        )
+                nps.DeterministicLikelihood(),
+            )
+        else:
+            raise NotImplementedError
 
-    if comparison_function in ["partial_difference", "partial_distance"]:
-        if non_equivariant_dim is None:
-            raise RuntimeError("you need to specify non-equivariant dim!")
-        nb_non_equivariant_dim = len(non_equivariant_dim)
-        dec_dim_input = (dim_relational_embedding + nb_non_equivariant_dim) * len(
-            dim_yc
-        )
-    else:
         dec_dim_input = dim_relational_embedding * len(dim_yc)
+    else:
+        def construct_relational_mlp(dim_yci):
+            if relational_encoding_type == "simple":
+                if comparison_function == "distance":
+                    in_dim = 1 + dim_yci
+                elif comparison_function == "partial_distance":
+                    if non_equivariant_dim is None:
+                        raise RuntimeError("you need to specify non-equivariant dim!")
+                    in_dim = 1 + dim_yci + len(non_equivariant_dim)
+                elif comparison_function == "sparse_distance":
+                    in_dim = 1 + dim_yci
+                elif comparison_function == "sparse_difference":
+                    in_dim = dim_x + dim_yci
+                else:
+                    in_dim = dim_x + dim_yci
+            else:
+                if comparison_function == "distance":
+                    in_dim = 2 + 2 * dim_yci
+                elif comparison_function == "distance_rotate":
+                    in_dim = 5 + 2 * dim_yci
+                elif comparison_function == "partial_distance":
+                    if non_equivariant_dim is None:
+                        raise RuntimeError("you need to specify non-equivariant dim!")
+                    in_dim = 2 + 2 * dim_yci + len(non_equivariant_dim)
+                elif comparison_function == "partial_difference":
+                    if non_equivariant_dim is None:
+                        raise RuntimeError("you need to specify non-equivariant dim!")
+                    in_dim = (
+                        2 * (dim_x - len(non_equivariant_dim))
+                        + 2 * dim_yci
+                        + len(non_equivariant_dim)
+                    )
+                elif comparison_function == "sparse_distance":
+                    in_dim = 2 + 2 * dim_yci
+                else:
+                    in_dim = 2 * dim_x + 2 * dim_yci
+
+            return nps.RelationalMLP(
+                in_dim=in_dim,
+                relational_out_dim=dim_relational_embedding,
+                num_relational_enc_layers=num_relational_enc_layers,
+                width=relational_width,
+                dtype=dtype,
+                comparison_function=comparison_function,
+                relational_encoding_type=relational_encoding_type,
+                non_equivariant_dim=non_equivariant_dim,
+                k=k,
+            )
+
+        if len(dim_yc) < 2 or enc_same:
+            relational_encoder = construct_relational_mlp(dim_yc[0])
+            encoder = nps.Chain(
+                nps.RepeatForAggregateInputs(
+                    nps.RelationalEncode(relational_encoder, encode_target=True)
+                ),
+                nps.DeterministicLikelihood(),
+            )
+        else:
+            # if enc_same=False we need multiple relational encoders
+            relational_encoder = [construct_relational_mlp(dim_yci) for dim_yci in dim_yc]
+            encoder = nps.Chain(
+                nps.RepeatForAggregateInputs(
+                    nps.Chain(
+                        nps.Copy(len(dim_yc)),
+                        nps.Parallel(
+                            *(
+                                nps.RelationalEncode(
+                                    relational_encoder[ii], encode_target=True, out_index=ii
+                                )
+                                for ii in range(len(dim_yc))
+                            )
+                        ),
+                        nps.ConcatRelational(),
+                    ),
+                ),
+                nps.DeterministicLikelihood(),
+            )
+
+        if comparison_function in ["partial_difference", "partial_distance"]:
+            if non_equivariant_dim is None:
+                raise RuntimeError("you need to specify non-equivariant dim!")
+            nb_non_equivariant_dim = len(non_equivariant_dim)
+            dec_dim_input = (dim_relational_embedding + nb_non_equivariant_dim) * len(
+                dim_yc
+            )
+        else:
+            dec_dim_input = dim_relational_embedding * len(dim_yc)
 
     decoder = nps.Chain(
         nps.RepeatForAggregateInputs(

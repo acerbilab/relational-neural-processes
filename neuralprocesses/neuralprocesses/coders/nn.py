@@ -4,6 +4,7 @@ from typing import Tuple, Union, Optional
 
 import lab as B
 from plum import convert
+import torch
 
 from .. import _dispatch
 from ..datadims import data_dims
@@ -122,7 +123,7 @@ class RelationalMLP:
         in_dim (int): Input dimensionality.
         relational_out_dim (int): Output dimensionality.
         layers (tuple[int, ...], optional): Width of every hidden layer.
-        num_layers (int, optional): Number of hidden layers.
+        num_relational_enc_layers (int, optional): Number of relational hidden layers.
         width (int, optional): Width of the hidden layers
         nonlinearity (function, optional): Nonlinearity.
         dtype (dtype, optional): Data type.
@@ -136,25 +137,26 @@ class RelationalMLP:
         in_dim: int,
         relational_out_dim: int,
         layers: Optional[Tuple[int, ...]] = None,
-        num_layers: Optional[int] = None,
+        num_relational_enc_layers: Optional[int] = None,
         width: Optional[int] = None,
         nonlinearity=None,
         dtype=None,
         comparison_function="distance",
         relational_encoding_type="simple",
         non_equivariant_dim=None,
+        k=50,
     ):
         # Check that one of the two specifications is given.
         self.relational_out_dim = relational_out_dim
         layers_given = layers is not None
-        num_layers_given = num_layers is not None and width is not None
+        num_layers_given = num_relational_enc_layers is not None and width is not None
         if not (layers_given or num_layers_given):
             raise ValueError(
                 f"Must specify either `layers` or `num_layers` and `width`."
             )
         # Make sure that `layers` is a tuple of various widths.
         if not layers_given and num_layers_given:
-            layers = (width,) * num_layers
+            layers = (width,) * num_relational_enc_layers
 
         # Default to ReLUs.
         if nonlinearity is None:
@@ -175,6 +177,7 @@ class RelationalMLP:
         self.comparison_function = comparison_function
         self.relational_encoding_type = relational_encoding_type
         self.non_equivariant_dim = non_equivariant_dim
+        self.k = k
 
     def __call__(self, xc, yc, xt):
         xc = B.transpose(xc)
@@ -201,6 +204,42 @@ class RelationalMLP:
                 batch_size, diff_size, filter_size = dist_x.shape
                 # (batch_size * target_set_size * set_size, 2))
                 x = dist_x.view(batch_size * diff_size, filter_size)
+            elif self.comparison_function == "sparse_distance":
+                if set_size < self.k:
+                    # (batch_size, target_set_size, set_size, 1))
+                    dist_x = B.sqrt(
+                        B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(
+                            -1
+                        )
+                    )
+                    # (batch_size, target_set_size, set_size, 2))
+                    dist_x = B.concat(
+                        dist_x, yc.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1
+                    )
+                    # (batch_size, target_set_size * set_size, 2))
+                    dist_x = dist_x.reshape(batch_size, -1, 1 + out_dim)
+                    batch_size, diff_size, filter_size = dist_x.shape
+                    # (batch_size * target_set_size * set_size, 2))
+                    x = dist_x.view(batch_size * diff_size, filter_size)
+                else:
+                    distance_matrix = B.sqrt(
+                        B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1))
+                    _, nearest_indices = distance_matrix.topk(self.k, dim=2, largest=False)
+                    # print(nearest_indices.shape)
+                    batch_indices = torch.arange(batch_size).unsqueeze(1).unsqueeze(2).expand(-1, target_set_size, self.k)
+                    target_indices = torch.arange(target_set_size).unsqueeze(1).expand(-1, self.k).unsqueeze(
+                        0).repeat(batch_size, 1, 1)
+
+                    dist_x = B.concat(distance_matrix.unsqueeze(-1),
+                                      yc.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1)
+
+                    dist_x = dist_x[batch_indices, target_indices, nearest_indices]
+                    # print(dist_x.shape)
+                    dist_x = dist_x.reshape(batch_size, -1, 1 + out_dim)
+                    batch_size, diff_size, filter_size = dist_x.shape
+                    # (batch_size * target_set_size * set_size, 2))
+                    x = dist_x.view(batch_size * diff_size, filter_size)
+
             elif self.comparison_function == "difference":
                 xc_pairs = B.concat(xc, yc, axis=-1).unsqueeze(1)
                 xt_pairs = B.concat(
@@ -214,6 +253,45 @@ class RelationalMLP:
                 )
                 batch_size, diff_size, filter_size = diff_x.shape
                 x = diff_x.view(batch_size * diff_size, filter_size)
+            elif self.comparison_function == "sparse_difference":
+                if set_size < self.k:
+                    xc_pairs = B.concat(xc, yc, axis=-1).unsqueeze(1)
+                    xt_pairs = B.concat(
+                        xt,
+                        B.cast(xt.dtype, B.zeros(batch_size, target_set_size, 1)),
+                        axis=-1,
+                    ).unsqueeze(2)
+
+                    diff_x = (xt_pairs - xc_pairs).reshape(
+                        batch_size, -1, feature_dim + out_dim
+                    )
+                    batch_size, diff_size, filter_size = diff_x.shape
+                    x = diff_x.view(batch_size * diff_size, filter_size)
+                else:
+                    distance_matrix = B.sqrt(
+                        B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1))
+                    _, nearest_indices = distance_matrix.topk(self.k, dim=2, largest=False)
+                    # print(nearest_indices.shape)
+                    batch_indices = torch.arange(batch_size).unsqueeze(1).unsqueeze(2).expand(-1, target_set_size,
+                                                                                              self.k)
+                    target_indices = torch.arange(target_set_size).unsqueeze(1).expand(-1, self.k).unsqueeze(
+                        0).repeat(batch_size, 1, 1)
+
+                    xc_pairs = B.concat(xc, yc, axis=-1).unsqueeze(1)
+                    xt_pairs = B.concat(
+                        xt,
+                        B.cast(xt.dtype, B.zeros(batch_size, target_set_size, 1)),
+                        axis=-1,
+                    ).unsqueeze(2)
+
+                    diff_x = xt_pairs - xc_pairs
+                    diff_x = diff_x[batch_indices, target_indices, nearest_indices]
+                    diff_x = diff_x.reshape(
+                        batch_size, -1, feature_dim + out_dim
+                    )
+                    batch_size, diff_size, filter_size = diff_x.shape
+                    x = diff_x.view(batch_size * diff_size, filter_size)
+
             elif self.comparison_function == "partial_distance":
                 all_dim = set(range(feature_dim))
                 xc_non_equivariant = xc[:, :, self.non_equivariant_dim]
@@ -298,6 +376,130 @@ class RelationalMLP:
                 dist_x = B.concat(
                     dist_x,
                     relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1),
+                    axis=-1,
+                )
+
+                dist_x = dist_x.reshape(
+                    batch_size, target_set_size * set_size * set_size, -1
+                )
+
+                batch_size, diff_size, filter_size = dist_x.shape
+                # x shape: [batch_size * target_set_size * set_size * set_size, 4]
+                x = dist_x.view(batch_size * diff_size, filter_size)
+            elif self.comparison_function == "sparse_distance":
+                if set_size < self.k:
+                    relational_matrix = B.sqrt(
+                        B.sum((xc.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(
+                            -1
+                        )
+                    )
+
+                    yc_matrix_1 = yc.unsqueeze(2).repeat(1, 1, set_size, 1)
+                    yc_matrix_2 = yc.unsqueeze(1).repeat(1, set_size, 1, 1)
+                    # shape: [batch_size, set_size, set_size, 3]
+                    relational_matrix = B.concat(
+                        relational_matrix, yc_matrix_1, yc_matrix_2, axis=-1
+                    )
+                    # shape: [batch_size, set_size * set_size, 3]
+                    relational_matrix = relational_matrix.reshape(
+                        batch_size, set_size * set_size, -1
+                    )
+
+                    # 这一步很有可能是错的
+                    # shape: [batch_size, target_set_size, set_size * set_size, 1]
+                    dist_x = B.sqrt(
+                        B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(
+                            -1
+                        )
+                    ).repeat(1, 1, set_size, 1)
+
+                    # shape: [batch_size, target_set_size, set_size * set_size, 4]
+                    dist_x = B.concat(
+                        dist_x,
+                        relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1),
+                        axis=-1,
+                    )
+
+                    dist_x = dist_x.reshape(
+                        batch_size, target_set_size * set_size * set_size, -1
+                    )
+
+                    batch_size, diff_size, filter_size = dist_x.shape
+                    # x shape: [batch_size * target_set_size * set_size * set_size, 4]
+                    x = dist_x.view(batch_size * diff_size, filter_size)
+                else:
+                    relational_matrix = B.sqrt(
+                        B.sum((xc.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(-1))
+                    yc_matrix_1 = yc.unsqueeze(2).repeat(1, 1, set_size, 1)
+                    yc_matrix_2 = yc.unsqueeze(1).repeat(1, set_size, 1, 1)
+                    # shape: [batch_size, target_set_size, set_size, set_size, 3]
+                    relational_matrix = B.concat(
+                        relational_matrix, yc_matrix_1, yc_matrix_2, axis=-1
+                    ).unsqueeze(1).repeat(1, target_set_size, 1, 1, 1)
+                    # print("relation", relational_matrix.shape)
+                    distance_matrix = B.sqrt(
+                        B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1))
+
+                    # print("dist", distance_matrix.shape)
+
+                    _, nearest_indices = distance_matrix.topk(self.k, dim=2, largest=False)
+                    # print(nearest_indices.shape)
+
+                    batch_indices = torch.arange(batch_size).unsqueeze(1).unsqueeze(2).unsqueeze(3).expand(-1, target_set_size, self.k, self.k)
+                    target_indices = torch.arange(target_set_size).unsqueeze(1).unsqueeze(2).expand(-1, self.k, self.k).unsqueeze(0).repeat(batch_size, 1, 1, 1)
+                    row_indices = nearest_indices.unsqueeze(2).expand(-1, -1, self.k, self.k)
+                    col_indices = nearest_indices.unsqueeze(3).expand(-1, -1, self.k, self.k)
+
+                    dist_x = distance_matrix.unsqueeze(-1).unsqueeze(-1).repeat(1, 1, 1, set_size, 1)
+
+                    dist_x = B.concat(
+                        dist_x,
+                        relational_matrix,
+                        axis=-1,
+                    )
+
+                    dist_x = dist_x[batch_indices, target_indices, row_indices, col_indices]
+
+                    dist_x = dist_x.reshape(
+                        batch_size, target_set_size * self.k * self.k, -1
+                    )
+
+                    batch_size, diff_size, filter_size = dist_x.shape
+                    # x shape: [batch_size * target_set_size * k * k, 4]
+                    x = dist_x.view(batch_size * diff_size, filter_size)
+
+            elif self.comparison_function == "distance_rotate":
+                relational_matrix = B.sqrt(
+                    B.sum((xc.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(
+                        -1
+                    )
+                )
+                xt_matrix = B.sqrt(B.sum(xt.unsqueeze(2) ** 2, axis=-1)).unsqueeze(2).repeat(1, 1, set_size*set_size, 1)
+                xc_matrix_1 = B.sqrt(B.sum(xc.unsqueeze(2) ** 2, axis=-1).unsqueeze(2)).repeat(1, 1, set_size, 1)
+                xc_matrix_2 = B.sqrt(B.sum(xc.unsqueeze(1) ** 2, axis=-1).unsqueeze(-1)).repeat(1, set_size, 1, 1)
+                yc_matrix_1 = yc.unsqueeze(2).repeat(1, 1, set_size, 1)
+                yc_matrix_2 = yc.unsqueeze(1).repeat(1, set_size, 1, 1)
+                # shape: [batch_size, set_size, set_size, 3]
+                relational_matrix = B.concat(
+                    relational_matrix, xc_matrix_1, xc_matrix_2, yc_matrix_1, yc_matrix_2, axis=-1
+                )
+                # shape: [batch_size, set_size * set_size, 3]
+                relational_matrix = relational_matrix.reshape(
+                    batch_size, set_size * set_size, -1
+                )
+
+                # shape: [batch_size, target_set_size, set_size * set_size, 1]
+                dist_x = B.sqrt(
+                    B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(
+                        -1
+                    )
+                ).repeat(1, 1, set_size, 1)
+
+                # shape: [batch_size, target_set_size, set_size * set_size, 4]
+                dist_x = B.concat(
+                    dist_x,
+                    relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1),
+                    xt_matrix,
                     axis=-1,
                 )
 
@@ -442,12 +644,24 @@ class RelationalMLP:
         x = x.view(batch_size, diff_size, self.relational_out_dim)
 
         encoded_feature_dim = x.shape[-1]
-        set_size = (
-            set_size
-            if self.relational_encoding_type == "simple"
-            else set_size * set_size
-        )
-        x = x.view(batch_size, target_set_size, set_size, encoded_feature_dim)
+
+        if self.relational_encoding_type == "simple":
+            if self.comparison_function in ["sparse_difference", "sparse_distance"]:
+                if set_size < self.k:
+                    set_size_new = set_size
+                else:
+                    set_size_new = self.k
+            else:
+                set_size_new = set_size
+        else:
+            if self.comparison_function == "sparse_distance":
+                if set_size < self.k:
+                    set_size_new = set_size * set_size
+                else:
+                    set_size_new = self.k * self.k
+            else:
+                set_size_new = set_size * set_size
+        x = x.view(batch_size, target_set_size, set_size_new, encoded_feature_dim)
         encoded_target_x = x.sum(dim=2)
 
         if self.comparison_function in ["partial_difference", "partial_distance"]:

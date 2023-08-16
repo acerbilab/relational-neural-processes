@@ -57,7 +57,7 @@ def eval(state, model, objective, gen):
                 batch["xt"],
                 batch["yt"],
             )
-
+            # print(batch["xt"])
             # Save numbers.
             n = nps.num_data(batch["xt"], batch["yt"])
             vals.append(B.to_numpy(obj))
@@ -173,7 +173,7 @@ def main(**kw_args):
     parser.add_argument(
         "--comparison-function",
         type=str,
-        choices=["distance", "difference", "partial_distance", "partial_difference"],
+        choices=["distance", "difference", "partial_distance", "partial_difference", "distance_rotate", "sparse_distance", "sparse_difference"],
         default="difference")
     parser.add_argument("--non-equivariant-dim", type=lambda s: [int(item) for item in s.split(',')], default=None)
     parser.add_argument("--enc-same", action="store_true")
@@ -276,6 +276,7 @@ def main(**kw_args):
         data_dir,
         *((f"x{args.dim_x}_y{args.dim_y}",) if hasattr(args, "dim_x") else ()),
         args.model,
+        # *((f"{args.model}_{args.comparison_function}",)),
         *((args.arch,) if hasattr(args, "arch") else ()),
         args.objective,
         str(args.seed),
@@ -338,10 +339,11 @@ def main(**kw_args):
         "cancer_obs_type": args.cancer_obs_type,
         "comparison_function": args.comparison_function,
         "non_equivariant_dim": args.non_equivariant_dim,
+        "k": 50,
     }
 
     # Setup data generators for training and for evaluation.
-    if args.data == "cancer" or args.data=="cancer_latent" or args.data == "cancer_joint" or args.data == "cancer_multi":
+    if args.data in ["cancer", "cancer_latent", "cancer_joint", "cancer_multi"]:
         gen_train, gen_cv, gens_eval = exp.data[args.data]["setup"](
             args,
             config,
@@ -349,7 +351,7 @@ def main(**kw_args):
             num_tasks_cv=2**6 if args.train_fast else 2**8,
             num_tasks_eval=2**6 if args.evaluate_fast else 2**8,
             device=device,
-            this_seeds=[int(seeds[1]), int(seeds[2])]
+            seeds=[int(seeds[1]), int(seeds[2])]
         )
     else:
         gen_train, gen_cv, gens_eval = exp.data[args.data]["setup"](
@@ -415,6 +417,24 @@ def main(**kw_args):
                 relational_encoding_type="simple",
                 comparison_function=config["comparison_function"],
                 non_equivariant_dim=config["non_equivariant_dim"],
+                k=config["k"],
+            )
+        elif args.model == "arcnp":
+            model = nps.construct_arnp(
+                dim_x=config["dim_x"],
+                dim_yc=(1,) * config["dim_y"],
+                dim_yt=config["dim_y"],
+                dim_relational_embedding=config["dim_relational_embeddings"],
+                enc_same=config["enc_same"],
+                num_dec_layers=config["num_layers"],
+                width=config["width"],
+                relational_width=config['relational_width'],
+                num_relational_enc_layers=config['num_relational_layers'],
+                likelihood="het",
+                transform=config["transform"],
+                relational_encoding_type="simple",
+                comparison_function=config["comparison_function"],
+                non_equivariant_dim=config["non_equivariant_dim"],
             )
         elif args.model == "rgnp":
             model = nps.construct_rnp(
@@ -433,6 +453,7 @@ def main(**kw_args):
                 relational_encoding_type="simple",
                 comparison_function=config["comparison_function"],
                 non_equivariant_dim=config["non_equivariant_dim"],
+                k=config["k"],
             )
         elif args.model == "fullrcnp":
             model = nps.construct_fullrnp(
@@ -450,6 +471,7 @@ def main(**kw_args):
                 transform=config["transform"],
                 comparison_function=config["comparison_function"],
                 non_equivariant_dim=config["non_equivariant_dim"],
+                k=config["k"],
             )
         elif args.model == "fullrgnp":
             model = nps.construct_fullrnp(
@@ -468,6 +490,7 @@ def main(**kw_args):
                 transform=config["transform"],
                 comparison_function=config["comparison_function"],
                 non_equivariant_dim=config["non_equivariant_dim"],
+                k=config["k"],
             )
         elif args.model == "gnp":
             model = nps.construct_gnp(
@@ -728,14 +751,14 @@ def main(**kw_args):
 
         if not args.ar or args.also_ar:
             # Make some plots.
-            gen = gen_cv()
-            for i in range(args.evaluate_num_plots):
-                exp.visualise(
-                    model,
-                    gen,
-                    path=wd.file(f"evaluate-{i + 1:03d}.pdf"),
-                    config=config,
-                )
+            # gen = gen_cv()
+            # for i in range(args.evaluate_num_plots):
+            #     exp.visualise(
+            #         model,
+            #         gen,
+            #         path=wd.file(f"evaluate-{i + 1:03d}.pdf"),
+            #         config=config,
+            #     )
 
             # For every objective and evaluation generator, do the evaluation.
             for objecive_name, objective_eval in objectives_eval:
@@ -746,18 +769,18 @@ def main(**kw_args):
 
         # Always run AR evaluation for the conditional models.
         if not args.no_ar and (
-            args.model in {"cnp", "acnp", "convcnp"} or args.ar or args.also_ar
+            args.model in {"rcnp", "cnp", "acnp", "convcnp"} or args.ar or args.also_ar
         ):
             # Make some plots.
-            gen = gen_cv()
-            for i in range(args.evaluate_num_plots):
-                exp.visualise(
-                    model,
-                    gen,
-                    path=wd.file(f"evaluate-ar-{i + 1:03d}.pdf"),
-                    config=config,
-                    predict=nps.ar_predict,
-                )
+            # gen = gen_cv()
+            # for i in range(args.evaluate_num_plots):
+            #     exp.visualise(
+            #         model,
+            #         gen,
+            #         path=wd.file(f"evaluate-ar-{i + 1:03d}.pdf"),
+            #         config=config,
+            #         predict=nps.ar_predict,
+            #     )
 
             with out.Section("AR"):
                 for name, gen in gens_eval():
