@@ -160,8 +160,6 @@ def construct_predefined_gens(
         # We need to decide this number
         num_context=UniformDiscrete(1, 100),
         num_target=UniformDiscrete(50 * dim_x, 50 * dim_x),
-        pred_logpdf=pred_logpdf,
-        pred_logpdf_diag=pred_logpdf_diag,
         **config,
     )
 

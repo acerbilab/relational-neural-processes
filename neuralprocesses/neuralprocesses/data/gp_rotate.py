@@ -34,8 +34,8 @@ class GPGeneratorRotate(SyntheticGenerator):
         self,
         *args,
         kernel=stheno.EQ().stretch(0.25),
-        pred_logpdf=True,
-        pred_logpdf_diag=True,
+        pred_logpdf=False,
+        pred_logpdf_diag=False,
         **kw_args,
     ):
         self.kernel = kernel
@@ -105,9 +105,8 @@ class GPGeneratorRotate(SyntheticGenerator):
             self.state, yc_temp, yt_temp = prior.sample(self.state, fc, ft)
             mean_function_length_scale = B.cast(xc.dtype, B.linspace(0.5, 2, dim_x))
 
-
-            yc = yc_temp + torch.sum(xc_rotate.unsqueeze(2) ** 2 / mean_function_length_scale ** 2, axis=-2)
-            yt = yt_temp + torch.sum(xt_rotate.unsqueeze(2) ** 2 / mean_function_length_scale ** 2, axis=-2)
+            yc = yc_temp + torch.sum(xc_rotate.unsqueeze(2) ** 2 / mean_function_length_scale ** 2, axis=-1)
+            yt = yt_temp + torch.sum(xt_rotate.unsqueeze(2) ** 2 / mean_function_length_scale ** 2, axis=-1)
 
             # Make the new batch.
             batch = {}
@@ -115,10 +114,10 @@ class GPGeneratorRotate(SyntheticGenerator):
 
             # Compute predictive logpdfs.
             if self.pred_logpdf or self.pred_logpdf_diag:
-                post = prior | (fc, yc_temp)
+                post = prior | (fc, yc)
             if self.pred_logpdf:
-                batch["pred_logpdf"] = post(ft).logpdf(yt_temp)
+                batch["pred_logpdf"] = post(ft).logpdf(yt)
             if self.pred_logpdf_diag:
-                batch["pred_logpdf_diag"] = post(ft).diagonalise().logpdf(yt_temp)
+                batch["pred_logpdf_diag"] = post(ft).diagonalise().logpdf(yt)
 
             return batch
