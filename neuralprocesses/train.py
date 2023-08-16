@@ -185,7 +185,7 @@ def main(**kw_args):
         choices=["distance", "difference", "rotate"],
         default="difference")
     parser.add_argument("--non-equivariant-dim", type=lambda s: [int(item) for item in s.split(',')], default=None)
-
+    parser.add_argument("--fix-noise-epochs", type=int)
     if kw_args:
         # Load the arguments from the keyword arguments passed to the function.
         # Carefully convert these to command line arguments.
@@ -321,7 +321,7 @@ def main(**kw_args):
         "epsilon_start": 1e-2,
         "cholesky_retry_factor": 1e6,
         "fix_noise": None,
-        "fix_noise_epochs": 3,
+        "fix_noise_epochs": args.fix_noise_epochs,
         "width": 256,
         "relational_width": 256,
         "dim_relational_embeddings": 256,

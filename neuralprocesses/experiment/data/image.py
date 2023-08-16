@@ -18,6 +18,7 @@ def setup(
     device,
     seeds=None
 ):
+    config["default"]["epochs"] = 200
     config["dim_x"] = 2
     config["dim_y"] = 1 if config["image_dataset"].startswith("mnist") else 3
     config["dim_context"] = (config["dim_y"],)
@@ -25,13 +26,16 @@ def setup(
     small_value = 0.00001
     config["transform"] = (-small_value, 1 + small_value)  # bounded output
 
-    # convcnp architecture copied from the synthetic regression experiments:
-    config["unet_strides"] = (2,) * 6
-    config["conv_receptive_field"] = 4
+    # convcnp architecture modelled on the synthetic regression experiments:
+    config["conv_receptive_field"] = 1
     config["margin"] = 0.1
-    config["points_per_unit"] = 32
-    config["unet_strides"] = config["unet_strides"][:-1]
-    config["unet_channels"] = config["unet_channels"][:-1]
+    config["points_per_unit"] = 128
+    config["unet_strides"] = (1,) + (2,) * 4
+    config["unet_channels"] = (64,) * 5
+
+    # mnist experiments benefit from training with fixed noise
+    config["fix_noise"] = config["image_dataset"].startswith("mnist")
+    config["fix_noise_epochs"] = args.fix_noise_epochs or 50
 
     # data generators
     this_seeds = seeds or [10, 20]
