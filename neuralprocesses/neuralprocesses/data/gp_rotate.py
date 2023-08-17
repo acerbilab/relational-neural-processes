@@ -98,9 +98,7 @@ class GPGeneratorRotate(SyntheticGenerator):
                 rotate[j, :] = x_temp
             #rotate = B.matmul(rotate, rotate)
             if torch.det(rotate) < 0:
-                rotate_temp=rotate
-                rotate[0,:]=rotate[1,:]
-                rotate[1,:]=-rotate[0,:]
+                rotate[0,:]=-rotate[0,:]
 
             xc_rotate = B.matmul(xc, rotate)
             xt_rotate = B.matmul(xt, rotate)
