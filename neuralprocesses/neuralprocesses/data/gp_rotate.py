@@ -84,19 +84,14 @@ class GPGeneratorRotate(SyntheticGenerator):
                     )
 
             dim_x = xc.shape[-1]
-            normal_sampler = stheno.Normal(1)
 
-            rotate = B.cast(xc.dtype, B.zeros(dim_x, dim_x))
+            M = torch.randn(dim_x, dim_x)
+            rotate, _ = torch.linalg.qr(M)
 
-            rotate[0, :] = B.cast(xc.dtype, normal_sampler.sample(dim_x))
-            rotate[0, :] = rotate[0, :] / B.sqrt(B.sum(rotate[0, :] ** 2))
-            for j in range(1, dim_x):
-                x_temp = B.cast(xc.dtype, normal_sampler.sample(dim_x))
-                for jj in range(0, j):
-                    x_temp = x_temp - rotate[jj, :] * B.sum(x_temp * rotate[jj, :]) / B.sum(rotate[jj, :] ** 2)
-                x_temp = x_temp / B.sqrt(B.sum(x_temp ** 2))
-                rotate[j, :] = x_temp
-            rotate = B.matmul(rotate, rotate)
+            if torch.det(rotate) < 0:
+                rotate[:, 0] = -rotate[:, 0]
+
+            rotate = B.cast(xc.dtype, rotate).to(self.device)
 
             xc_rotate = B.matmul(xc, rotate)
             xt_rotate = B.matmul(xt, rotate)
@@ -111,13 +106,5 @@ class GPGeneratorRotate(SyntheticGenerator):
             # Make the new batch.
             batch = {}
             set_batch(batch, yc, yt)
-
-            # Compute predictive logpdfs.
-            if self.pred_logpdf or self.pred_logpdf_diag:
-                post = prior | (fc, yc)
-            if self.pred_logpdf:
-                batch["pred_logpdf"] = post(ft).logpdf(yt)
-            if self.pred_logpdf_diag:
-                batch["pred_logpdf_diag"] = post(ft).diagonalise().logpdf(yt)
 
             return batch
