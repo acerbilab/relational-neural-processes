@@ -31,3 +31,5 @@ _experiments
 BO/*
 outcmaes*
 .ipynb_checkpoints/*
+
+evaluate.py
