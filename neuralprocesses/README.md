@@ -4,16 +4,26 @@ _____
 **Note:** Our implementations build on the [neuralprocesses](http://github.com/wesselb/neuralprocesses) library by Wessel Bruinsma. 
 You can find further details on its structure and the dependencies at the github website.
 
-It can be installed as 
-```
-pip install neuralprocesses
-```
 _______
 
+## Installation
+```
+git clone https://github.com/acerbilab/relational-neural-processes.git
+
+cd relational-neural-processes
+
+conda create --name np python=3.10.10
+
+conda activate np
+
+pip install -r requirements.txt
+```
 
 
 To use our RCNP models, you can specify `--model` as one of `[rcnp, rgnp, fullrcnp, fullrgnp]`, where the latter two represents the full version of our models. You can also choose comparison function for relational encoding by using `--comparison-function`, where `different` stands for encoding translational equivariance, and `distance` stands for encoding rigid transformations.
-We also support partial encoding, where some dimensions of the data do not need relational encoding, you can change `--comparison-function` to `partial-difference` or `partial-distance`, and also specify the dimensions that do not require relational encoding through `--non-equivariant-dim`, e.g., `--non-equivariant-dim=“0,1”` means the first and the second dimension will not be encoded by relational encoder.
+
+We also support partial encoding, where some dimensions of the data do not need relational encoding, you can specify the dimensions that do not require relational encoding through `--non-equivariant-dim`, e.g., `--non-equivariant-dim=“0,1”` means the first and the second dimension will not be encoded by relational encoder.
+
 
 ## Synthetic Regression
 To run the synthetic regression experiment, you can use the following template command lines:
@@ -99,7 +109,18 @@ python train.py \
 with x in `(1, 10)` and m in `(rgnp, gnp, agnp, convgnp)`
 
 
+## Citation
+```
+@article{huang2023practical,
+  title={Practical Equivariances via Relational Conditional Neural Processes},
+  author={Huang, Daolang and Haussmann, Manuel and Remes, Ulpu and John, ST and Clart{\'e}, Gr{\'e}goire and Luck, Kevin Sebastian and Kaski, Samuel and Acerbi, Luigi},
+  journal={arXiv preprint arXiv:2306.10915},
+  year={2023}
+}
+```
 
+## License
+This code is under the MIT License.
 
 
 

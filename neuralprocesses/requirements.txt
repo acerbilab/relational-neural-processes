@@ -1,14 +1,19 @@
-# Requirements for development, testing, and documentation.
--e .
-jupyter-book
-ghp-import
 pytest
-pytest-cov
-pytest-rerunfailures
-coveralls
-black
 torch
+numpy
 tensorflow
-tensorflow-probability
-setuptools_scm[toml]
-setuptools_scm_git_archive
+matplotlib
+wbml
+pandas
+botorch
+click
+cma
+seaborn
+gpytorch
+tqdm
+setuptools
+sympy
+stheno
+scipy
+torchvision
+netcdf4
