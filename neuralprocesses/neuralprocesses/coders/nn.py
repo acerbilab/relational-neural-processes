@@ -5,13 +5,14 @@ from typing import Tuple, Union, Optional
 import lab as B
 from plum import convert
 import torch
+import torch.nn as nn
 
 from .. import _dispatch
 from ..datadims import data_dims
 from ..parallel import Parallel
 from ..util import register_module, compress_batch_dimensions, with_first_last
 
-__all__ = ["Linear", "MLP", "UNet", "ConvNet", "Conv", "ResidualBlock", "RelationalMLP"]
+__all__ = ["Linear", "MLP", "UNet", "ConvNet", "Conv", "ResidualBlock", "RelationalMLP", "Transformer"]
 
 
 @register_module
@@ -112,6 +113,64 @@ def code(coder: Union[Linear, MLP], xz, z: B.Numeric, x, **kw_args):
     z = uncompress(z)
     z = B.transpose(z, perm=switch)
 
+    return xz, z
+
+@register_module
+class Transformer:
+    def __init__(
+        self,
+        dim_x: int,
+        dim_y: int,
+        dim_embedding: int,
+        num_layers: int,
+        depth: int,
+        num_heads: int,
+        width: int,
+        dtype=None,
+    ):
+        self.embedder = self.build_mlp(dim_x + dim_y, dim_embedding, dim_embedding, depth)
+
+        encoder_layer = nn.TransformerEncoderLayer(dim_embedding, num_heads, width, dropout=0.0, batch_first=True)
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers)
+
+    def build_mlp(self, dim_in, dim_hid, dim_out, depth):
+        modules = [nn.Linear(dim_in, dim_hid), nn.ReLU(True)]
+        for _ in range(depth - 2):
+            modules.append(nn.Linear(dim_hid, dim_hid))
+            modules.append(nn.ReLU(True))
+        modules.append(nn.Linear(dim_hid, dim_out))
+        return nn.Sequential(*modules)
+
+    def create_mask(self, xc, yc, xt):
+        num_ctx = xc.shape[1]
+        num_tar = xt.shape[1]
+        num_all = num_ctx + num_tar
+
+        mask = torch.zeros(num_all, num_all).fill_(float('-inf'))
+        mask = B.cast(xc.dtype, mask)
+        mask[:, :num_ctx] = 0.0
+
+        return mask, num_tar
+
+    def __call__(self,  xc, yc, xt):
+        # (batch_size, set_size, feature_dim)
+        xc = B.transpose(xc)
+        yc = B.transpose(yc)
+        xt = B.transpose(xt)
+        x_y_context = B.concat(xc, yc, axis=-1)
+        x_t_test = B.concat(xt, B.cast(xt.dtype, B.zeros(xt.shape[0], xt.shape[1], 1)), axis=-1)
+        inp = B.concat(x_y_context, x_t_test, axis=1)
+        mask, num_tar = self.create_mask(xc, yc, xt)
+        embeddings = self.embedder(inp)
+        out = self.encoder(embeddings, mask=mask)
+        out = B.transpose(out[:, -num_tar:])
+
+        return out
+
+
+@_dispatch
+def code(coder: Transformer, xz, z: B.Numeric, x, **kw_args):
+    xz = coder(xz, z, x)
     return xz, z
 
 
@@ -405,7 +464,6 @@ class RelationalMLP:
                         batch_size, set_size * set_size, -1
                     )
 
-                    # 这一步很有可能是错的
                     # shape: [batch_size, target_set_size, set_size * set_size, 1]
                     dist_x = B.sqrt(
                         B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(

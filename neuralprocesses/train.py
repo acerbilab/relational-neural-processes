@@ -57,7 +57,6 @@ def eval(state, model, objective, gen):
                 batch["xt"],
                 batch["yt"],
             )
-            # print(batch["xt"])
             # Save numbers.
             n = nps.num_data(batch["xt"], batch["yt"])
             vals.append(B.to_numpy(obj))
@@ -99,6 +98,7 @@ def main(**kw_args):
             "fullrgnp",
             "cnp",
             "gnp",
+            "tnp",
             "np",
             "acnp",
             "agnp",
@@ -324,6 +324,7 @@ def main(**kw_args):
         "enc_same": args.enc_same,
         "num_heads": 8,
         "num_layers": 6,
+        "num_tfm_layers": 2,
         "num_relational_layers": 3,
         "unet_channels": (64,) * 6,
         "unet_strides": (1,) + (2,) * 5,
@@ -491,6 +492,20 @@ def main(**kw_args):
                 comparison_function=config["comparison_function"],
                 non_equivariant_dim=config["non_equivariant_dim"],
                 k=config["k"],
+            )
+        elif args.model == "tnp":
+            model = nps.construct_tnp(
+                dim_x=config["dim_x"],
+                dim_yc=(1,) * config["dim_y"],
+                dim_yt=config["dim_y"],
+                dim_embedding=config["dim_embedding"],
+                num_heads=config["num_heads"],
+                num_tfm_layers=config["num_tfm_layers"],
+                enc_same=config["enc_same"],
+                num_dec_layers=config["num_layers"],
+                width=config["width"],
+                likelihood="het",
+                transform=config["transform"],
             )
         elif args.model == "gnp":
             model = nps.construct_gnp(

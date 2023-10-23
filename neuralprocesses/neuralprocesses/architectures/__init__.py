@@ -6,3 +6,4 @@ from .gnp import *
 from .fullrnp import *
 from .rnp import *
 from .arnp import *
+from .tnp import *
