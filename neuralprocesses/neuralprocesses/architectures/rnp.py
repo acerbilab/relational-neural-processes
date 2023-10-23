@@ -3,6 +3,7 @@ from plum import convert
 import neuralprocesses as nps  # This fixes inspection below.
 from .util import construct_likelihood, parse_transform
 from ..util import register_model
+from ..comparison_function import *
 
 __all__ = ["construct_rnp"]
 
@@ -25,14 +26,13 @@ def construct_rnp(
     relational_width=64,
     likelihood="lowrank",
     num_basis_functions=64,
-    dim_lv=0,
-    lv_likelihood="het",
     transform=None,
     dtype=None,
     nps=nps,
     comparison_function="difference",
     relational_encoding_type="simple",
     non_equivariant_dim=None,
+    sparse=False,
     k=50,
 ):
     """A Simple Relational Neural Process.
@@ -78,10 +78,23 @@ def construct_rnp(
             `"softplus_of_square"` for positive data or `(lower, upper)` for data in
             this open interval.
         dtype (dtype, optional): Data type.
+        comparison_function: comparison function used for relational encoding. Defaults to 'difference'
+        relational_encoding_type: type of relational_encoding, choose between 'simple' or 'full'
+        non_equivariant_dim: indicates which dimensions are non-equivariant. Defaults to None
+        sparse: whether to use sparse rcnp or not. Defaults to False
 
     Returns:
         :class:`.model.Model`: RNP model.
     """
+    if comparison_function == "difference":
+        comparison_func = difference
+    elif comparison_function == "distance":
+        comparison_func = distance
+    elif comparison_function == "rotate":
+        comparison_func = rotate
+    else:
+        raise ValueError("comparison function not implemented yet")
+
     # Make sure that `dim_yc` is initialised and a tuple.
     dim_yc = convert(dim_yc or dim_y, tuple)
     # Make sure that `dim_yt` is initialised.
@@ -102,81 +115,37 @@ def construct_rnp(
         dtype=dtype,
     )
     if attention:
-        def construct_attentive_relational_mlp(dim_yci):
-            # TODO add support for full RCNP and partial encoding
-            if relational_encoding_type == "simple":
-                if comparison_function == "distance":
-                    in_dim = 1 + dim_yci
-                elif comparison_function == "partial_distance":
-                    raise NotImplementedError
-                else:
-                    in_dim = dim_x + dim_yci
-            else:
-                raise NotImplementedError
-
-            return nps.RelationalAttention(
-                dim_x=dim_x,
-                dim_y=dim_yci,
-                in_dim=in_dim,
-                relational_out_dim=dim_relational_embedding,
-                dim_embedding=dim_embedding,
-                num_relational_enc_layers=num_relational_enc_layers,
-                num_enc_layers=num_enc_layers,
-                width=relational_width,
-                dtype=dtype,
-                comparison_function=comparison_function,
-                relational_encoding_type=relational_encoding_type,
-                non_equivariant_dim=non_equivariant_dim,
-                num_heads=attention_num_heads
-            )
-
-        # TODO construct encoder
-        if len(dim_yc) < 2 or enc_same:
-            relational_encoder = construct_attentive_relational_mlp(dim_yc[0])
-            encoder = nps.Chain(
-                nps.RepeatForAggregateInputs(
-                    nps.RelationalEncode(relational_encoder, encode_target=True)
-                ),
-                nps.DeterministicLikelihood(),
-            )
-        else:
-            raise NotImplementedError
-
-        dec_dim_input = dim_relational_embedding * len(dim_yc)
+        raise NotImplementedError("attention not implemented yet")
     else:
         def construct_relational_mlp(dim_yci):
             if relational_encoding_type == "simple":
                 if comparison_function == "distance":
-                    in_dim = 1 + dim_yci
-                elif comparison_function == "partial_distance":
                     if non_equivariant_dim is None:
-                        raise RuntimeError("you need to specify non-equivariant dim!")
-                    in_dim = 1 + dim_yci + len(non_equivariant_dim)
-                elif comparison_function == "sparse_distance":
-                    in_dim = 1 + dim_yci
-                elif comparison_function == "sparse_difference":
+                        in_dim = 1 + dim_yci
+                    else:
+                        in_dim = 1 + dim_yci + len(non_equivariant_dim)
+                elif comparison_function == "difference":
                     in_dim = dim_x + dim_yci
                 else:
                     in_dim = dim_x + dim_yci
             else:
                 if comparison_function == "distance":
-                    in_dim = 2 + 2 * dim_yci
-                elif comparison_function == "distance_rotate":
+                    if non_equivariant_dim is None:
+                        in_dim = 2 + 2 * dim_yci
+                    else:
+                        in_dim = 2 + 2 * dim_yci + len(non_equivariant_dim)
+                elif comparison_function == "rotate":
                     in_dim = 5 + 2 * dim_yci
-                elif comparison_function == "partial_distance":
-                    if non_equivariant_dim is None:
-                        raise RuntimeError("you need to specify non-equivariant dim!")
-                    in_dim = 2 + 2 * dim_yci + len(non_equivariant_dim)
-                elif comparison_function == "partial_difference":
-                    if non_equivariant_dim is None:
-                        raise RuntimeError("you need to specify non-equivariant dim!")
-                    in_dim = (
-                        2 * (dim_x - len(non_equivariant_dim))
-                        + 2 * dim_yci
-                        + len(non_equivariant_dim)
-                    )
-                elif comparison_function == "sparse_distance":
-                    in_dim = 2 + 2 * dim_yci
+
+                elif comparison_function == "difference":
+                    if non_equivariant_dim is not None:
+                        in_dim = (
+                            2 * (dim_x - len(non_equivariant_dim))
+                            + 2 * dim_yci
+                            + len(non_equivariant_dim)
+                        )
+                    else:
+                        in_dim = 2 * dim_x + 2 * dim_yci
                 else:
                     in_dim = 2 * dim_x + 2 * dim_yci
 
@@ -186,9 +155,10 @@ def construct_rnp(
                 num_relational_enc_layers=num_relational_enc_layers,
                 width=relational_width,
                 dtype=dtype,
-                comparison_function=comparison_function,
+                comparison_function=comparison_func,
                 relational_encoding_type=relational_encoding_type,
                 non_equivariant_dim=non_equivariant_dim,
+                sparse=sparse,
                 k=k,
             )
 
@@ -221,9 +191,7 @@ def construct_rnp(
                 nps.DeterministicLikelihood(),
             )
 
-        if comparison_function in ["partial_difference", "partial_distance"]:
-            if non_equivariant_dim is None:
-                raise RuntimeError("you need to specify non-equivariant dim!")
+        if non_equivariant_dim is not None:
             nb_non_equivariant_dim = len(non_equivariant_dim)
             dec_dim_input = (dim_relational_embedding + nb_non_equivariant_dim) * len(
                 dim_yc

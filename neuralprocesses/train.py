@@ -170,14 +170,15 @@ def main(**kw_args):
     )
     parser.add_argument("--patch", type=str)
     parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument("--enc-same", action="store_true")
+    parser.add_argument("--num-basis-functions", type=int, default=64)
+    parser.add_argument("--sparse", action="store_true")
     parser.add_argument(
         "--comparison-function",
         type=str,
-        choices=["distance", "difference", "partial_distance", "partial_difference", "distance_rotate", "sparse_distance", "sparse_difference"],
+        choices=["distance", "difference", "rotate"],
         default="difference")
     parser.add_argument("--non-equivariant-dim", type=lambda s: [int(item) for item in s.split(',')], default=None)
-    parser.add_argument("--enc-same", action="store_true")
-    parser.add_argument("--num-basis-functions", type=int, default=64)
 
     if kw_args:
         # Load the arguments from the keyword arguments passed to the function.
@@ -234,8 +235,6 @@ def main(**kw_args):
     }:
         del args.arch
 
-    if args.comparison_function not in ['partial_distance', 'partial_difference']:
-        args.non_equivariant_dim = None
     if args.dim_x == 1 and args.model in ['rcnp', 'rgnp'] and args.non_equivariant_dim is not None:
         out.out("Can't use RCNP if data does not require relational encoding")
         sys.exit(1)
@@ -275,8 +274,7 @@ def main(**kw_args):
         *(args.subdir or ()),
         data_dir,
         *((f"x{args.dim_x}_y{args.dim_y}",) if hasattr(args, "dim_x") else ()),
-        args.model,
-        # *((f"{args.model}_{args.comparison_function}",)),
+        *((f"{args.model}_{args.comparison_function}",) if args.model in ["rcnp", "rgnp", "fullrcnp", "fullrgnp",] else args.model),
         *((args.arch,) if hasattr(args, "arch") else ()),
         args.objective,
         str(args.seed),
@@ -340,6 +338,7 @@ def main(**kw_args):
         "cancer_obs_type": args.cancer_obs_type,
         "comparison_function": args.comparison_function,
         "non_equivariant_dim": args.non_equivariant_dim,
+        "sparse": args.sparse,
         "k": 50,
     }
 
@@ -418,6 +417,7 @@ def main(**kw_args):
                 relational_encoding_type="simple",
                 comparison_function=config["comparison_function"],
                 non_equivariant_dim=config["non_equivariant_dim"],
+                sparse=config["sparse"],
                 k=config["k"],
             )
         elif args.model == "arcnp":
@@ -436,6 +436,8 @@ def main(**kw_args):
                 relational_encoding_type="simple",
                 comparison_function=config["comparison_function"],
                 non_equivariant_dim=config["non_equivariant_dim"],
+                sparse=config["sparse"],
+                k=config["k"],
             )
         elif args.model == "rgnp":
             model = nps.construct_rnp(
@@ -454,6 +456,7 @@ def main(**kw_args):
                 relational_encoding_type="simple",
                 comparison_function=config["comparison_function"],
                 non_equivariant_dim=config["non_equivariant_dim"],
+                sparse=config["sparse"],
                 k=config["k"],
             )
         elif args.model == "fullrcnp":
@@ -472,6 +475,7 @@ def main(**kw_args):
                 transform=config["transform"],
                 comparison_function=config["comparison_function"],
                 non_equivariant_dim=config["non_equivariant_dim"],
+                sparse=config["sparse"],
                 k=config["k"],
             )
         elif args.model == "fullrgnp":
@@ -491,6 +495,7 @@ def main(**kw_args):
                 transform=config["transform"],
                 comparison_function=config["comparison_function"],
                 non_equivariant_dim=config["non_equivariant_dim"],
+                sparse=config["sparse"],
                 k=config["k"],
             )
         elif args.model == "tnp":
