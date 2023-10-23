@@ -33,19 +33,19 @@ For the above template command, we use RCNP model with `difference` comparison f
 To run the Bayesian optimization experiment first run 
 ```
 python bayesopt/bo_train.py \
-    --target hartmann3d \
-    --exp "bo_fixed" \
-    --model "rcnp"
+    --target=hartmann3d \
+    --exp="bo_fixed" \
+    --model="rcnp"
  ```
 to pretrain a model with the desired set of kernels. Here, ``-target` is one of `[hartmann3d, hartmann6d]`, `--exp` is one of `[bo_fixed, bo_matern, bo_single, bo_sumprod]` corresponding to scenario (i)-(iv) in the paper. `--model` is one of `[cnp, gnp, acnp, agnp, rcnp, rgnp]`.
 
 Once trained, apply it to the BO task as
 ```
 python bayesopt/bo_apply.py \
-    --exp "bo_fixed" \
-    --target_name "hartmann3d" \
-    --n_rep 10 \
-    --n_steps 50
+    --exp="bo_fixed" \
+    --target_name="hartmann3d" \
+    --n_rep=10 \
+    --n_steps=50
  ```
 where `--exp` and `--target_name` as above and `--n_rep`, `--n_steps` specify the number of replications and the number of query steps respectively.
 
@@ -55,9 +55,9 @@ For the Lotka-Volterra model experiments, we used the "predprey" experiment avai
 To rerun our CNP experiments, use
 ```
 python train.py \
-    --data "predprey" \ 
-    --seed x \ 
-    --model m \
+    --data="predprey" \ 
+    --seed=x \ 
+    --model=m \
     --enc-same
 ```
 
@@ -66,11 +66,11 @@ with x in (1, 10) and m in (rcnp, cnp, acnp, convcnp).
 To rerun our GNP experiments, use
 ```
 python train.py \
-    --data "predprey" \
-    --seed x \
-    --model m \
+    --data="predprey" \
+    --seed=x \
+    --model=m \
     --enc-same \
-    --num-basis-functions 32
+    --num-basis-functions=32
 ```
 with x in `(1, 10)` and m in `(rgnp, gnp, agnp, convgnp)`
 
@@ -83,22 +83,20 @@ The dataset used from the Reaction-Diffusion simulator is stored in the `neuralp
 To run experiments, use, with x the seed chosen and m the method chosen `(rcnp, rgnp, cnp, gnp, acnp, agnp)`:
 ```
 python train.py \
-    --data "cancer" \
-    --seed = x \
-    --device='cuda' \
-    --model m
+    --data="cancer" \
+    --seed=x \
+    --model=m
 ```
 For the additional study, run:
 ```
 python train.py \
-    --data "cancer_latent" \
-    --seed = x \
-    --device='cuda' \
-    --model m \ 
-    --non-equivariant-dims 3 \
-    --comparison-function "partial_differences"
+    --data="cancer_latent" \
+    --seed=x \
+    --model=m \ 
+    --non-equivariant-dim="3" \
+    --comparison-function="difference"
 ```
-
+with x in `(1, 10)` and m in `(rgnp, gnp, agnp, convgnp)`
 
 
 
