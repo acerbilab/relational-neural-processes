@@ -110,16 +110,16 @@ def construct_predefined_gens(
         ]
     }
     gens["gp_rotate"] = GPGeneratorRotate(
-            dtype,
-            seed=seed,
-            noise=0.05,
-            kernel=EQ().stretch(factor * 1),
-            type_gen=type_gen,
-            # We need to decide this number
-            num_context=UniformDiscrete(1, 70),
-            num_target=UniformDiscrete(35 * dim_x, 35 * dim_x),
-            **config,
-        )
+        dtype,
+        seed=seed,
+        noise=0.05,
+        kernel=EQ().stretch(factor * 1),
+        type_gen=type_gen,
+        # We need to decide this number
+        num_context=UniformDiscrete(1, 70),
+        num_target=UniformDiscrete(35 * dim_x, 35 * dim_x),
+        **config,
+    )
     # Previously, the maximum number of context points was `75 * dim_x`. However, if
     # `dim_x == 1`, then this is too high. We therefore change that case, and keep all
     # other cases the same.
