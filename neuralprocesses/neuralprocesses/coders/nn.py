@@ -241,11 +241,12 @@ class RelationalMLP:
         self.k = k
 
     def __call__(self, xc, yc, xt):
-        _, set_size, _ = xc.shape
-        _, target_set_size, _ = xt.shape
         xc = B.transpose(xc)
         yc = B.transpose(yc)
         xt = B.transpose(xt)
+
+        _, set_size, _ = xc.shape
+        _, target_set_size, _ = xt.shape
 
         encoding = self.comparison_function(self.relational_encoding_type,
                                             xc,
