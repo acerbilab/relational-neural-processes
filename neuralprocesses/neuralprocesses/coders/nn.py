@@ -241,19 +241,22 @@ class RelationalMLP:
         self.k = k
 
     def __call__(self, xc, yc, xt):
-        batch_size, set_size, _ = xc.shape
+        _, set_size, _ = xc.shape
         _, target_set_size, _ = xt.shape
         xc = B.transpose(xc)
         yc = B.transpose(yc)
         xt = B.transpose(xt)
 
-        encoding, encoding_size = self.comparison_function(self.relational_encoding_type,
-                                                    xc,
-                                                    yc,
-                                                    xt,
-                                                    self.sparse,
-                                                    self.k,
-                                                    self.non_equivariant_dim)
+        encoding = self.comparison_function(self.relational_encoding_type,
+                                            xc,
+                                            yc,
+                                            xt,
+                                            self.sparse,
+                                            self.k,
+                                            self.non_equivariant_dim)
+
+        batch_size, encoding_size, filter_size = encoding.shape
+        encoding = encoding.view(batch_size * encoding_size, filter_size)
 
         x = self.net(encoding)
         x = x.view(batch_size, encoding_size, self.relational_out_dim)

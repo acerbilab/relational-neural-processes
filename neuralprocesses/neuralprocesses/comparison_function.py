@@ -64,10 +64,7 @@ def distance(relational_encoding_type,
                 dist_x = B.concat(dist_x, yc.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1)
 
         # (batch_size, target_set_size * set_size, 2))
-        dist_x = dist_x.reshape(batch_size, -1, 1 + out_dim + len_non_equivariant_dim)
-        batch_size, encoding_size, filter_size = dist_x.shape
-        # (batch_size * target_set_size * set_size, 2))
-        encoding = dist_x.view(batch_size * encoding_size, filter_size)
+        encoding = dist_x.reshape(batch_size, -1, 1 + out_dim + len_non_equivariant_dim)
 
     elif relational_encoding_type == "full":
         if sparse and set_size > k:
@@ -112,7 +109,7 @@ def distance(relational_encoding_type,
 
             dist_x = dist_x[batch_indices, target_indices, row_indices, col_indices]
 
-            dist_x = dist_x.reshape(
+            encoding = dist_x.reshape(
                 batch_size, target_set_size * k * k, -1
             )
 
@@ -153,17 +150,14 @@ def distance(relational_encoding_type,
                     axis=-1,
                 )
 
-            dist_x = dist_x.reshape(
+            encoding = dist_x.reshape(
                 batch_size, target_set_size * set_size * set_size, -1
             )
 
-        batch_size, encoding_size, filter_size = dist_x.shape
-        # x shape: [batch_size * target_set_size * set_size * set_size, 4]
-        encoding = dist_x.view(batch_size * encoding_size, filter_size)
     else:
         raise NotImplementedError
 
-    return encoding, encoding_size
+    return encoding
 
 
 def difference(relational_encoding_type,
@@ -232,9 +226,7 @@ def difference(relational_encoding_type,
             else:
                 diff_x = xt_pairs - xc_pairs
 
-        diff_x = diff_x.reshape(batch_size, -1, feature_dim + out_dim)
-        batch_size, encoding_size, filter_size = diff_x.shape
-        encoding = diff_x.view(batch_size * encoding_size, filter_size)
+        encoding = diff_x.reshape(batch_size, -1, feature_dim + out_dim)
 
     elif relational_encoding_type == "full":
         if sparse and set_size > k:
@@ -275,16 +267,13 @@ def difference(relational_encoding_type,
                     axis=-1,
                 )
 
-        diff_x = diff_x.reshape(
+        encoding = diff_x.reshape(
             batch_size, target_set_size * set_size * set_size, -1
         )
-        batch_size, encoding_size, filter_size = diff_x.shape
-        # x shape: [batch_size * target_set_size * set_size * set_size, 4]
-        encoding = diff_x.view(batch_size * encoding_size, filter_size)
     else:
         raise NotImplementedError
 
-    return encoding, encoding_size
+    return encoding
 
 
 def rotate(relational_encoding_type,
@@ -344,15 +333,11 @@ def rotate(relational_encoding_type,
                 axis=-1,
             )
 
-            dist_x = dist_x.reshape(
+            encoding = dist_x.reshape(
                 batch_size, target_set_size * set_size * set_size, -1
             )
-
-            batch_size, encoding_size, filter_size = dist_x.shape
-            # x shape: [batch_size * target_set_size * set_size * set_size, 4]
-            encoding = dist_x.view(batch_size * encoding_size, filter_size)
 
     else:
         raise NotImplementedError
 
-    return encoding, encoding_size
+    return encoding
