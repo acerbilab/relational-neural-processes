@@ -9,8 +9,6 @@ def distance(relational_encoding_type,
              xc,
              yc,
              xt,
-             net,
-             relational_out_dim: int,
              sparse: bool = False,
              k: Optional[int] = None,
              non_equivariant_dim: Optional[list] = None,
@@ -22,7 +20,6 @@ def distance(relational_encoding_type,
     if non_equivariant_dim is not None:
         all_dim = set(range(feature_dim))
         xc_non_equivariant = xc[:, :, non_equivariant_dim]
-        xt_non_equivariant = xt[:, :, non_equivariant_dim]
 
         equivariant_dim = list(set(all_dim) - set(non_equivariant_dim))
         xc = xc[:, :, equivariant_dim]
@@ -68,10 +65,9 @@ def distance(relational_encoding_type,
 
         # (batch_size, target_set_size * set_size, 2))
         dist_x = dist_x.reshape(batch_size, -1, 1 + out_dim + len_non_equivariant_dim)
-        batch_size, diff_size, filter_size = dist_x.shape
-
+        batch_size, encoding_size, filter_size = dist_x.shape
         # (batch_size * target_set_size * set_size, 2))
-        x = dist_x.view(batch_size * diff_size, filter_size)
+        encoding = dist_x.view(batch_size * encoding_size, filter_size)
 
     elif relational_encoding_type == "full":
         if sparse and set_size > k:
@@ -161,44 +157,19 @@ def distance(relational_encoding_type,
                 batch_size, target_set_size * set_size * set_size, -1
             )
 
-        batch_size, diff_size, filter_size = dist_x.shape
+        batch_size, encoding_size, filter_size = dist_x.shape
         # x shape: [batch_size * target_set_size * set_size * set_size, 4]
-        x = dist_x.view(batch_size * diff_size, filter_size)
+        encoding = dist_x.view(batch_size * encoding_size, filter_size)
     else:
         raise NotImplementedError
 
-    x = net(x)
-    x = x.view(batch_size, diff_size, relational_out_dim)
-    encoded_feature_dim = x.shape[-1]
-
-    if relational_encoding_type == "simple":
-        if sparse and set_size > k:
-            set_size_new = k
-        else:
-            set_size_new = set_size
-    elif relational_encoding_type == "full":
-        if sparse and set_size > k:
-            set_size_new = k * k
-        else:
-            set_size_new = set_size * set_size
-    else:
-        raise NotImplementedError
-
-    x = x.view(batch_size, target_set_size, set_size_new, encoded_feature_dim)
-    encoded_target_x = x.sum(dim=2)
-    if non_equivariant_dim is not None:
-        encoded_target_x = B.concat(encoded_target_x, xt_non_equivariant, axis=-1)
-
-    encoded_target_x = B.transpose(encoded_target_x)
-    return encoded_target_x
+    return encoding, encoding_size
 
 
 def difference(relational_encoding_type,
              xc,
              yc,
              xt,
-             net,
-             relational_out_dim: int,
              sparse: bool = False,
              k: Optional[int] = None,
              non_equivariant_dim: Optional[list] = None,
@@ -210,7 +181,6 @@ def difference(relational_encoding_type,
     if non_equivariant_dim is not None:
         all_dim = set(range(feature_dim))
         xc_non_equivariant = xc[:, :, non_equivariant_dim]
-        xt_non_equivariant = xt[:, :, non_equivariant_dim]
 
         equivariant_dim = list(set(all_dim) - set(non_equivariant_dim))
         xc = xc[:, :, equivariant_dim]
@@ -244,9 +214,7 @@ def difference(relational_encoding_type,
                     axis=-1)
             else:
                 diff_x = xt_pairs - xc_pairs
-            diff_x = diff_x[batch_indices, target_indices, nearest_indices].reshape(
-                        batch_size, -1, feature_dim + out_dim
-                    )
+            diff_x = diff_x[batch_indices, target_indices, nearest_indices]
 
         else:
             xc_pairs = B.concat(xc, yc, axis=-1).unsqueeze(1)
@@ -263,14 +231,14 @@ def difference(relational_encoding_type,
                     axis=-1)
             else:
                 diff_x = xt_pairs - xc_pairs
-            diff_x = diff_x.reshape(batch_size, -1, feature_dim + out_dim)
 
-        batch_size, diff_size, filter_size = diff_x.shape
-        x = diff_x.view(batch_size * diff_size, filter_size)
+        diff_x = diff_x.reshape(batch_size, -1, feature_dim + out_dim)
+        batch_size, encoding_size, filter_size = diff_x.shape
+        encoding = diff_x.view(batch_size * encoding_size, filter_size)
 
     elif relational_encoding_type == "full":
         if sparse and set_size > k:
-            raise NotImplementedError("Sparse FullRCNP is not implemented yet")
+            raise NotImplementedError("Sparse FullRCNP for difference comparison function is not implemented yet")
 
         else:
             relational_matrix = xc.unsqueeze(2) - xc.unsqueeze(1)
@@ -307,49 +275,84 @@ def difference(relational_encoding_type,
                     axis=-1,
                 )
 
-            diff_x = diff_x.reshape(
-                batch_size, target_set_size * set_size * set_size, -1
-            )
-            batch_size, diff_size, filter_size = diff_x.shape
-            # x shape: [batch_size * target_set_size * set_size * set_size, 4]
-            x = diff_x.view(batch_size * diff_size, filter_size)
+        diff_x = diff_x.reshape(
+            batch_size, target_set_size * set_size * set_size, -1
+        )
+        batch_size, encoding_size, filter_size = diff_x.shape
+        # x shape: [batch_size * target_set_size * set_size * set_size, 4]
+        encoding = diff_x.view(batch_size * encoding_size, filter_size)
     else:
         raise NotImplementedError
 
-    x = net(x)
-    x = x.view(batch_size, diff_size, relational_out_dim)
-    encoded_feature_dim = x.shape[-1]
-
-    if relational_encoding_type == "simple":
-        if sparse and set_size > k:
-            set_size_new = k
-        else:
-            set_size_new = set_size
-    elif relational_encoding_type == "full":
-        if sparse and set_size > k:
-            set_size_new = k * k
-        else:
-            set_size_new = set_size * set_size
-    else:
-        raise NotImplementedError
-
-    x = x.view(batch_size, target_set_size, set_size_new, encoded_feature_dim)
-    encoded_target_x = x.sum(dim=2)
-    if non_equivariant_dim is not None:
-        encoded_target_x = B.concat(encoded_target_x, xt_non_equivariant, axis=-1)
-
-    encoded_target_x = B.transpose(encoded_target_x)
-    return encoded_target_x
+    return encoding, encoding_size
 
 
 def rotate(relational_encoding_type,
          xc,
          yc,
          xt,
-         net,
-         relational_out_dim: int,
          sparse: bool = False,
          k: Optional[int] = None,
          non_equivariant_dim: Optional[list] = None,
          ):
-    raise NotImplementedError
+
+    batch_size, set_size, feature_dim = xc.shape
+    _, target_set_size, _ = xt.shape
+    _, _, out_dim = yc.shape
+
+    if non_equivariant_dim is not None:
+        # TODO: implement non_equivariant_dim for rotate comparison function
+        raise NotImplementedError("Non equivariant dimension with rotation comparison function not implemented yet")
+
+    if relational_encoding_type == "simple":
+        raise NotImplementedError("SimpleRCNP with rotate comparison function is not implemented yet")
+    elif relational_encoding_type == "full":
+        if sparse and set_size > k:
+            raise NotImplementedError("Sparse FullRCNP for rotation comparison function is not implemented yet")
+        else:
+            relational_matrix = B.sqrt(
+                B.sum((xc.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(
+                    -1
+                )
+            )
+            xt_matrix = B.sqrt(B.sum(xt.unsqueeze(2) ** 2, axis=-1)).unsqueeze(2).repeat(1, 1, set_size * set_size, 1)
+            xc_matrix_1 = B.sqrt(B.sum(xc.unsqueeze(2) ** 2, axis=-1).unsqueeze(2)).repeat(1, 1, set_size, 1)
+            xc_matrix_2 = B.sqrt(B.sum(xc.unsqueeze(1) ** 2, axis=-1).unsqueeze(-1)).repeat(1, set_size, 1, 1)
+            yc_matrix_1 = yc.unsqueeze(2).repeat(1, 1, set_size, 1)
+            yc_matrix_2 = yc.unsqueeze(1).repeat(1, set_size, 1, 1)
+            # shape: [batch_size, set_size, set_size, 3]
+            relational_matrix = B.concat(
+                relational_matrix, xc_matrix_1, xc_matrix_2, yc_matrix_1, yc_matrix_2, axis=-1
+            )
+            # shape: [batch_size, set_size * set_size, 3]
+            relational_matrix = relational_matrix.reshape(
+                batch_size, set_size * set_size, -1
+            )
+
+            # shape: [batch_size, target_set_size, set_size * set_size, 1]
+            dist_x = B.sqrt(
+                B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(
+                    -1
+                )
+            ).repeat(1, 1, set_size, 1)
+
+            # shape: [batch_size, target_set_size, set_size * set_size, 4]
+            dist_x = B.concat(
+                dist_x,
+                relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1),
+                xt_matrix,
+                axis=-1,
+            )
+
+            dist_x = dist_x.reshape(
+                batch_size, target_set_size * set_size * set_size, -1
+            )
+
+            batch_size, encoding_size, filter_size = dist_x.shape
+            # x shape: [batch_size * target_set_size * set_size * set_size, 4]
+            encoding = dist_x.view(batch_size * encoding_size, filter_size)
+
+    else:
+        raise NotImplementedError
+
+    return encoding, encoding_size

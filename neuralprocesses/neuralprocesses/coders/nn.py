@@ -241,20 +241,44 @@ class RelationalMLP:
         self.k = k
 
     def __call__(self, xc, yc, xt):
+        batch_size, set_size, _ = xc.shape
+        _, target_set_size, _ = xt.shape
         xc = B.transpose(xc)
         yc = B.transpose(yc)
         xt = B.transpose(xt)
 
-        encoded_target_x = self.comparison_function(self.relational_encoding_type,
+        encoding, encoding_size = self.comparison_function(self.relational_encoding_type,
                                                     xc,
                                                     yc,
                                                     xt,
-                                                    self.net,
-                                                    self.relational_out_dim,
                                                     self.sparse,
                                                     self.k,
                                                     self.non_equivariant_dim)
 
+        x = self.net(encoding)
+        x = x.view(batch_size, encoding_size, self.relational_out_dim)
+        encoded_feature_dim = x.shape[-1]
+
+        if self.relational_encoding_type == "simple":
+            if self.sparse and set_size > self.k:
+                set_size_new = self.k
+            else:
+                set_size_new = set_size
+        elif self.relational_encoding_type == "full":
+            if self.sparse and set_size > self.k:
+                set_size_new = self.k * self.k
+            else:
+                set_size_new = set_size * set_size
+        else:
+            raise NotImplementedError
+
+        x = x.view(batch_size, target_set_size, set_size_new, encoded_feature_dim)
+        encoded_target_x = x.sum(dim=2)
+        if self.non_equivariant_dim is not None:
+            xt_non_equivariant = xt[:, :, self.non_equivariant_dim]
+            encoded_target_x = B.concat(encoded_target_x, xt_non_equivariant, axis=-1)
+
+        encoded_target_x = B.transpose(encoded_target_x)
         return encoded_target_x
 
 
