@@ -80,6 +80,7 @@ def setup(
         dim_y=args.dim_y,
         pred_logpdf=False,
         pred_logpdf_diag=False,
+        type_gen="train",
         x_range_context=x_range_context,
         x_range_target=x_range_target,
         device=device,
@@ -95,6 +96,7 @@ def setup(
         dim_y=args.dim_y,
         pred_logpdf=True,
         pred_logpdf_diag=True,
+        type_gen="test",
         # comment this out later
         x_range_context=x_range_context,
         x_range_target=x_range_target,
@@ -133,6 +135,7 @@ def setup(
                     dim_y=args.dim_y,
                     pred_logpdf=True,
                     pred_logpdf_diag=True,
+                    type_gen="eval",
                     device=device,
                     x_range_context=x_range_context,
                     x_range_target=x_range_target,
