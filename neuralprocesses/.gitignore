@@ -25,6 +25,7 @@ cover
 .vscode/*
 venv-np
 _experiments
+_dataset
 
 ../.idea
 *.png
