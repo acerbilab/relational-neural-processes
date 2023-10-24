@@ -6,24 +6,6 @@ from .data import SyntheticGenerator, new_batch
 
 __all__ = ["GPGeneratorRotate"]
 
-"""
-
-def transform_to_euclidean(x):
-        r=torch.zeros_like(x)
-        r[:,0,:]=x[:,0,:]*torch.sin(x[:,1,:])*torch.cos(x[:,2,:])
-        r[:,1,:]=x[:,0,:]*torch.sin(x[:,1,:])*torch.sin(x[:,2,:])
-        r[:,2,:]=x[:,0,:]*torch.cos(x[:,1,:])
-        return r
-        
-def transform_to_spherical(x):
-        r=torch.zeros_like(x)
-        r[:,0,:]=torch.sqrt(torch.sum(x**2,axis=-2))
-        r[:,1,:]=torch.arccos(x[:,2,:]/r[:,0,:])/2*np.pi
-        r[:,2,:]=torch.sign(x[:,1,:])*torch.arccos(xc[:,0,:]/r[:,0,:])/np.pi
-        return r
-
-"""
-
 
 class GPGeneratorRotate(SyntheticGenerator):
     """GP generator.
@@ -52,13 +34,15 @@ class GPGeneratorRotate(SyntheticGenerator):
         self,
         *args,
         kernel=stheno.EQ().stretch(0.25),
-        pred_logpdf=True,
-        pred_logpdf_diag=True,
+        pred_logpdf=False,
+        pred_logpdf_diag=False,
+        type_gen="test",
         **kw_args,
     ):
         self.kernel = kernel
         self.pred_logpdf = pred_logpdf
         self.pred_logpdf_diag = pred_logpdf_diag
+        self.type_gen=type_gen
         super().__init__(*args, **kw_args)
 
     def generate_batch(self):
@@ -70,11 +54,12 @@ class GPGeneratorRotate(SyntheticGenerator):
         """
         with B.on_device(self.device):
             set_batch, xcs, xc, nc, xts, xt, nt = new_batch(self, self.dim_y)
+            #print(self.type_gen)
 
             dim_x = xc.shape[-1]
             normal_sampler = stheno.Normal(1)
 
-            rotate = B.cast(xc.dtype, B.zeros(dim_x, dim_x))
+            rotate = B.ca	st(xc.dtype, B.zeros(dim_x, dim_x))
 
             rotate[0, :] = B.cast(xc.dtype, normal_sampler.sample(dim_x))
             rotate[0, :] = rotate[0, :] / B.sqrt(B.sum(rotate[0, :] ** 2))
@@ -86,13 +71,25 @@ class GPGeneratorRotate(SyntheticGenerator):
                 rotate[j, :] = x_temp
             if torch.det(rotate)<0:
                 rotate[0,:]=-rotate[0,:]
-            xc_rotate = B.matmul(xc, rotate)
-            xt_rotate = B.matmul(xt, rotate)
+            #xc_rotate = B.matmul(xc, rotate)
+            #xt_rotate = B.matmul(xt, rotate)
+            if self.type_gen=="eval":
+                xc_rotate = B.matmul(xc, rotate)
+                xt_rotate = B.matmul(xt, rotate)
+            else:
+                xc_rotate = xc
+                xt_rotate = xt
 
-            homeothetie=B.cast(xc.dtype,B.linspace(0.7, 1.5, dim_x))
+            homothety=B.cast(xc.dtype,B.linspace(0.7, 1.5, dim_x))
+            #xc_rotate_homoth = B.matmul(xc*homothety,rotate)
+            #xt_rotate_homoth = B.matmul(xt*homothety,rotate)
 
-            xc_rotate_homeo = B.matmul(xc*homeothetie,rotate)
-            xt_rotate_homeo = B.matmul(xt*homeothetie,rotate)
+            if self.type_gen == "eval":
+                xc_rotate_homoth = B.matmul(xc,rotate)*homothety
+                xt_rotate_homoth = B.matmul(xt,rotate)*homothety
+            else:
+                xc_rotate_homoth = xc*homothety
+                xt_rotate_homoth = xt*homothety
 
             # If `self.h` is specified, then we create a multi-output GP. Otherwise, we
             # use a simple regular GP.
@@ -100,8 +97,8 @@ class GPGeneratorRotate(SyntheticGenerator):
                 with stheno.Measure() as prior:
                     f = stheno.GP(self.kernel)
                     # Construct FDDs for the context and target points.
-                    fc = f(xc_rotate_homeo, self.noise)
-                    ft = f(xt_rotate_homeo, self.noise)
+                    fc = f(xc_rotate_homoth, self.noise)
+                    ft = f(xt_rotate_homoth, self.noise)
             else:
                 with stheno.Measure() as prior:
                     # Construct latent processes and initialise output processes.
@@ -156,5 +153,3 @@ class GPGeneratorRotate(SyntheticGenerator):
                 batch["pred_logpdf_diag"] = post(ft).diagonalise().logpdf(yt)
 
             return batch
-
-
