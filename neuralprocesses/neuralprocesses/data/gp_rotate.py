@@ -59,7 +59,7 @@ class GPGeneratorRotate(SyntheticGenerator):
             dim_x = xc.shape[-1]
             normal_sampler = stheno.Normal(1)
 
-            rotate = B.ca	st(xc.dtype, B.zeros(dim_x, dim_x))
+            rotate = B.cast(xc.dtype, B.zeros(dim_x, dim_x))
 
             rotate[0, :] = B.cast(xc.dtype, normal_sampler.sample(dim_x))
             rotate[0, :] = rotate[0, :] / B.sqrt(B.sum(rotate[0, :] ** 2))
