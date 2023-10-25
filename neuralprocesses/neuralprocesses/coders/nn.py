@@ -248,18 +248,18 @@ class RelationalMLP:
         _, set_size, _ = xc.shape
         _, target_set_size, _ = xt.shape
 
-        encoding = self.comparison_function(self.relational_encoding_type,
-                                            xc,
-                                            yc,
-                                            xt,
-                                            self.sparse,
-                                            self.k,
-                                            self.non_equivariant_dim)
+        relational_encoding = self.comparison_function(self.relational_encoding_type,
+                                                       xc,
+                                                       yc,
+                                                       xt,
+                                                       self.sparse,
+                                                       self.k,
+                                                       self.non_equivariant_dim)
 
-        batch_size, encoding_size, filter_size = encoding.shape
-        encoding = encoding.view(batch_size * encoding_size, filter_size)
+        batch_size, encoding_size, filter_size = relational_encoding.shape
+        relational_encoding = relational_encoding.view(batch_size * encoding_size, filter_size)
 
-        x = self.net(encoding)
+        x = self.net(relational_encoding)
         x = x.view(batch_size, encoding_size, self.relational_out_dim)
         encoded_feature_dim = x.shape[-1]
 

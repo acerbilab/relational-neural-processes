@@ -30,52 +30,41 @@ def distance(relational_encoding_type,
 
     if relational_encoding_type == "simple":
         if sparse and set_size > k:
-            distance_matrix = B.sqrt(B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1))
-            _, nearest_indices = distance_matrix.topk(k, dim=2, largest=False)
+            dist_x_1 = B.sqrt(B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1))
+            dist_x = dist_x_1.unsqueeze(-1)
+            _, nearest_indices = dist_x_1.topk(k, dim=2, largest=False)
             batch_indices = torch.arange(batch_size).unsqueeze(1).unsqueeze(2).expand(-1, target_set_size, k)
             target_indices = torch.arange(target_set_size).unsqueeze(1).expand(-1, k).unsqueeze(
                 0).repeat(batch_size, 1, 1)
-
-            if non_equivariant_dim is not None:
-                dist_x = B.concat(
-                    distance_matrix.unsqueeze(-1),
-                    xc_non_equivariant.unsqueeze(1).repeat(1, target_set_size, 1, 1),
-                    yc.unsqueeze(1).repeat(1, target_set_size, 1, 1),
-                    axis=-1,
-                )
-            else:
-                dist_x = B.concat(distance_matrix.unsqueeze(-1),
-                                yc.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1)
-
-            dist_x = dist_x[batch_indices, target_indices, nearest_indices]
         else:
-            # (batch_size, target_set_size, set_size, 1))
             dist_x = B.sqrt(B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(-1))
 
-            if non_equivariant_dim is not None:
-                dist_x = B.concat(
-                    dist_x,
-                    xc_non_equivariant.unsqueeze(1).repeat(1, target_set_size, 1, 1),
-                    yc.unsqueeze(1).repeat(1, target_set_size, 1, 1),
-                    axis=-1,
-                )
-            else:
-                # (batch_size, target_set_size, set_size, 2))
-                dist_x = B.concat(dist_x, yc.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1)
+        if non_equivariant_dim is not None:
+            dist_x = B.concat(
+                dist_x,
+                xc_non_equivariant.unsqueeze(1).repeat(1, target_set_size, 1, 1),
+                yc.unsqueeze(1).repeat(1, target_set_size, 1, 1),
+                axis=-1,
+            )
+        else:
+            dist_x = B.concat(dist_x, yc.unsqueeze(1).repeat(1, target_set_size, 1, 1), axis=-1)
+
+        if sparse and set_size > k:
+            dist_x = dist_x[batch_indices, target_indices, nearest_indices]
 
         # (batch_size, target_set_size * set_size, 2))
         encoding = dist_x.reshape(batch_size, -1, 1 + out_dim + len_non_equivariant_dim)
 
     elif relational_encoding_type == "full":
+        relational_matrix = B.sqrt(B.sum((xc.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(-1))
+        yc_matrix_1 = yc.unsqueeze(2).repeat(1, 1, set_size, 1)
+        yc_matrix_2 = yc.unsqueeze(1).repeat(1, set_size, 1, 1)
+        # shape: [batch_size, set_size, set_size, 3]
+        relational_matrix = B.concat(relational_matrix, yc_matrix_1, yc_matrix_2, axis=-1)
+
         if sparse and set_size > k:
-            relational_matrix = B.sqrt(
-                B.sum((xc.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(-1))
-            yc_matrix_1 = yc.unsqueeze(2).repeat(1, 1, set_size, 1)
-            yc_matrix_2 = yc.unsqueeze(1).repeat(1, set_size, 1, 1)
             # shape: [batch_size, target_set_size, set_size, set_size, 3]
-            relational_matrix = B.concat(
-                relational_matrix, yc_matrix_1, yc_matrix_2, axis=-1
-            ).unsqueeze(1).repeat(1, target_set_size, 1, 1, 1)
+            relational_matrix = relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1, 1)
 
             distance_matrix = B.sqrt(
                 B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1))
@@ -95,9 +84,7 @@ def distance(relational_encoding_type,
                 dist_x = B.concat(
                     dist_x,
                     relational_matrix,
-                    xc_non_equivariant.unsqueeze(1).repeat(
-                        1, target_set_size, set_size, 1
-                    ),
+                    xc_non_equivariant.unsqueeze(1).repeat(1, target_set_size, set_size, 1),
                     axis=-1,
                 )
             else:
@@ -114,14 +101,6 @@ def distance(relational_encoding_type,
             )
 
         else:
-            relational_matrix = B.sqrt(B.sum((xc.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1).unsqueeze(-1))
-
-            yc_matrix_1 = yc.unsqueeze(2).repeat(1, 1, set_size, 1)
-            yc_matrix_2 = yc.unsqueeze(1).repeat(1, set_size, 1, 1)
-            # shape: [batch_size, set_size, set_size, 3]
-            relational_matrix = B.concat(
-                relational_matrix, yc_matrix_1, yc_matrix_2, axis=-1
-            )
             # shape: [batch_size, set_size * set_size, 3]
             relational_matrix = relational_matrix.reshape(
                 batch_size, set_size * set_size, -1
@@ -133,20 +112,19 @@ def distance(relational_encoding_type,
                     -1
                 )
             ).repeat(1, 1, set_size, 1)
+            relational_matrix = relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1)
             if non_equivariant_dim is not None:
                 dist_x = B.concat(
                     dist_x,
-                    relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1),
-                    xc_non_equivariant.unsqueeze(1).repeat(
-                        1, target_set_size, set_size, 1
-                    ),
+                    relational_matrix,
+                    xc_non_equivariant.unsqueeze(1).repeat(1, target_set_size, set_size, 1),
                     axis=-1,
                 )
             else:
                 # shape: [batch_size, target_set_size, set_size * set_size, 4]
                 dist_x = B.concat(
                     dist_x,
-                    relational_matrix.unsqueeze(1).repeat(1, target_set_size, 1, 1),
+                    relational_matrix,
                     axis=-1,
                 )
 
@@ -161,13 +139,13 @@ def distance(relational_encoding_type,
 
 
 def difference(relational_encoding_type,
-             xc,
-             yc,
-             xt,
-             sparse: bool = False,
-             k: Optional[int] = None,
-             non_equivariant_dim: Optional[list] = None,
-             ):
+               xc,
+               yc,
+               xt,
+               sparse: bool = False,
+               k: Optional[int] = None,
+               non_equivariant_dim: Optional[list] = None,
+               ):
     batch_size, set_size, feature_dim = xc.shape
     _, target_set_size, _ = xt.shape
     _, _, out_dim = yc.shape
@@ -185,46 +163,30 @@ def difference(relational_encoding_type,
 
     if relational_encoding_type == "simple":
         if sparse and set_size > k:
-            distance_matrix = B.sqrt(
-                B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1))
+            distance_matrix = B.sqrt(B.sum((xt.unsqueeze(2) - xc.unsqueeze(1)) ** 2, axis=-1))
             _, nearest_indices = distance_matrix.topk(k, dim=2, largest=False)
 
             batch_indices = torch.arange(batch_size).unsqueeze(1).unsqueeze(2).expand(-1, target_set_size, k)
             target_indices = torch.arange(target_set_size).unsqueeze(1).expand(-1, k).unsqueeze(
                 0).repeat(batch_size, 1, 1)
 
-            xc_pairs = B.concat(xc, yc, axis=-1).unsqueeze(1)
+        xc_pairs = B.concat(xc, yc, axis=-1).unsqueeze(1)
+        xt_pairs = B.concat(
+            xt,
+            B.cast(xt.dtype, B.zeros(batch_size, target_set_size, out_dim)),
+            axis=-1,
+        ).unsqueeze(2)
 
-            xt_pairs = B.concat(
-                xt,
-                B.cast(xt.dtype, B.zeros(batch_size, target_set_size, out_dim)),
-                axis=-1,
-            ).unsqueeze(2)
-
-            if non_equivariant_dim is not None:
-                diff_x = B.concat(
-                    xt_pairs - xc_pairs,
-                    xc_non_equivariant.unsqueeze(1).repeat(1, target_set_size, 1, 1),
-                    axis=-1)
-            else:
-                diff_x = xt_pairs - xc_pairs
-            diff_x = diff_x[batch_indices, target_indices, nearest_indices]
-
+        if non_equivariant_dim is not None:
+            diff_x = B.concat(
+                xt_pairs - xc_pairs,
+                xc_non_equivariant.unsqueeze(1).repeat(1, target_set_size, 1, 1),
+                axis=-1)
         else:
-            xc_pairs = B.concat(xc, yc, axis=-1).unsqueeze(1)
-            xt_pairs = B.concat(
-                xt,
-                B.cast(xt.dtype, B.zeros(batch_size, target_set_size, out_dim)),
-                axis=-1,
-            ).unsqueeze(2)
+            diff_x = xt_pairs - xc_pairs
 
-            if non_equivariant_dim is not None:
-                diff_x = B.concat(
-                    xt_pairs - xc_pairs,
-                    xc_non_equivariant.unsqueeze(1).repeat(1, target_set_size, 1, 1),
-                    axis=-1)
-            else:
-                diff_x = xt_pairs - xc_pairs
+        if sparse and set_size > k:
+            diff_x = diff_x[batch_indices, target_indices, nearest_indices]
 
         encoding = diff_x.reshape(batch_size, -1, feature_dim + out_dim)
 
@@ -277,14 +239,13 @@ def difference(relational_encoding_type,
 
 
 def rotate(relational_encoding_type,
-         xc,
-         yc,
-         xt,
-         sparse: bool = False,
-         k: Optional[int] = None,
-         non_equivariant_dim: Optional[list] = None,
-         ):
-
+           xc,
+           yc,
+           xt,
+           sparse: bool = False,
+           k: Optional[int] = None,
+           non_equivariant_dim: Optional[list] = None,
+           ):
     batch_size, set_size, feature_dim = xc.shape
     _, target_set_size, _ = xt.shape
     _, _, out_dim = yc.shape
