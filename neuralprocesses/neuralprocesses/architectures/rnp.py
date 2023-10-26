@@ -31,7 +31,7 @@ def construct_rnp(
     nps=nps,
     comparison_function="difference",
     relational_encoding_type="simple",
-    non_equivariant_dim=None,
+    non_equivariant_dim=[],
     sparse=False,
     k=50,
 ):
@@ -80,20 +80,42 @@ def construct_rnp(
         dtype (dtype, optional): Data type.
         comparison_function: comparison function used for relational encoding. Defaults to 'difference'
         relational_encoding_type: type of relational_encoding, choose between 'simple' or 'full'
-        non_equivariant_dim: indicates which dimensions are non-equivariant. Defaults to None
+        non_equivariant_dim: indicates which dimensions are non-equivariant. Defaults to an empty list.
         sparse: whether to use sparse rcnp or not. Defaults to False
 
     Returns:
         :class:`.model.Model`: RNP model.
     """
-    if comparison_function == "difference":
-        comparison_func = difference
-    elif comparison_function == "distance":
-        comparison_func = distance
-    elif comparison_function == "rotate":
-        comparison_func = rotate
+    if isinstance(comparison_function, str):
+        if comparison_function == "difference":
+            comparison_func = difference
+            comparison_dim = dim_x - len(non_equivariant_dim)
+            comparison_dim_full = 2 * comparison_dim
+        elif comparison_function == "distance":
+            comparison_func = distance
+            comparison_dim = 1
+            comparison_dim_full = 2 * comparison_dim
+        elif comparison_function == "rotate":
+            comparison_func = rotate
+            comparison_dim = 3
+            comparison_dim_full = 5
+        else:
+            raise ValueError("comparison function not implemented yet")
     else:
-        raise ValueError("comparison function not implemented yet")
+        if not isinstance(comparison_function, tuple):
+            raise ValueError("The comparison function must be a string or a tuple.")
+        if len(comparison_function) != 3:
+            raise ValueError("A custom comparison function must be a tuple (callable, int, int).")
+
+        have_callable = callable(comparison_function[0])
+        have_dim = isinstance(comparison_function[1], int)
+        have_dim_full = isinstance(comparison_function[2], int)
+        if have_callable and have_dim and have_dim_full:
+                comparison_func = comparison_function[0]
+                comparison_dim = comparison_function[1]
+                comparison_dim_full = comparison_function[2]
+        else:
+            raise ValueError("A custom comparison function must be a tuple (callable, int, int).")
 
     # Make sure that `dim_yc` is initialised and a tuple.
     dim_yc = convert(dim_yc or dim_y, tuple)
@@ -131,35 +153,9 @@ def construct_rnp(
     else:
         def construct_relational_mlp(dim_yci):
             if relational_encoding_type == "simple":
-                if comparison_function == "distance":
-                    if non_equivariant_dim is None:
-                        in_dim = 1 + dim_yci
-                    else:
-                        in_dim = 1 + dim_yci + len(non_equivariant_dim)
-                elif comparison_function == "difference":
-                    in_dim = dim_x + dim_yci
-                else:
-                    in_dim = dim_x + dim_yci
+                in_dim = comparison_dim + dim_yci + len(non_equivariant_dim)
             else:
-                if comparison_function == "distance":
-                    if non_equivariant_dim is None:
-                        in_dim = 2 + 2 * dim_yci
-                    else:
-                        in_dim = 2 + 2 * dim_yci + len(non_equivariant_dim)
-                elif comparison_function == "rotate":
-                    in_dim = 5 + 2 * dim_yci
-
-                elif comparison_function == "difference":
-                    if non_equivariant_dim is not None:
-                        in_dim = (
-                            2 * (dim_x - len(non_equivariant_dim))
-                            + 2 * dim_yci
-                            + len(non_equivariant_dim)
-                        )
-                    else:
-                        in_dim = 2 * dim_x + 2 * dim_yci
-                else:
-                    in_dim = 2 * dim_x + 2 * dim_yci
+                in_dim = comparison_dim_full + 2 * dim_yci + len(non_equivariant_dim)
 
             return nps.RelationalMLP(
                 in_dim=in_dim,
