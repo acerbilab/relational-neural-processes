@@ -36,13 +36,15 @@ class GPGeneratorRotate(SyntheticGenerator):
         kernel=stheno.EQ().stretch(0.25),
         pred_logpdf=False,
         pred_logpdf_diag=False,
-        type_gen="test",
+        type_gen="train",
+        kernel_type="isotropic",
         **kw_args,
     ):
         self.kernel = kernel
         self.pred_logpdf = pred_logpdf
         self.pred_logpdf_diag = pred_logpdf_diag
-        self.type_gen=type_gen
+        self.type_gen = type_gen
+        self.kernel_type = kernel_type
         super().__init__(*args, **kw_args)
 
     def generate_batch(self):
@@ -68,27 +70,40 @@ class GPGeneratorRotate(SyntheticGenerator):
                     x_temp = x_temp - rotate[jj, :] * B.sum(x_temp * rotate[jj, :]) / B.sum(rotate[jj, :] ** 2)
                 x_temp = x_temp / B.sqrt(B.sum(x_temp ** 2))
                 rotate[j, :] = x_temp
-            if torch.det(rotate)<0:
-                rotate[0,:]=-rotate[0,:]
-            #xc_rotate = B.matmul(xc, rotate)
-            #xt_rotate = B.matmul(xt, rotate)
-            if self.type_gen=="eval":
+            if torch.det(rotate) < 0:
+                rotate[0, :] = -rotate[0, :]
+
+            homothety = B.cast(xc.dtype, B.linspace(0.7, 1.5, dim_x))
+
+            if self.type_gen is None:  # first experiment, table S12, we don't care about dataset type
                 xc_rotate = B.matmul(xc, rotate)
                 xt_rotate = B.matmul(xt, rotate)
-            else:
+                if self.kernel_type == "isotropic":
+                    xc_kernel = xc
+                    xt_kernel = xt
+                else:
+                    xc_kernel = xc_rotate * homothety
+                    xt_kernel = xt_rotate * homothety
+            elif self.type_gen == "train" or "val":  # second experiment, table S13, we care about dataset type
                 xc_rotate = xc
                 xt_rotate = xt
-
-            homothety=B.cast(xc.dtype,B.linspace(0.7, 1.5, dim_x))
-            #xc_rotate_homoth = B.matmul(xc*homothety,rotate)
-            #xt_rotate_homoth = B.matmul(xt*homothety,rotate)
-
-            if self.type_gen == "eval":
-                xc_rotate_homoth = B.matmul(xc,rotate)*homothety
-                xt_rotate_homoth = B.matmul(xt,rotate)*homothety
+                if self.kernel_type == "isotropic":
+                    xc_kernel = xc
+                    xt_kernel = xt
+                else:
+                    xc_kernel = xc * homothety
+                    xt_kernel = xt * homothety
+            elif self.type_gen == "eval":
+                xc_rotate = B.matmul(xc, rotate)
+                xt_rotate = B.matmul(xt, rotate)
+                if self.kernel_type == "isotropic":
+                    xc_kernel = xc
+                    xt_kernel = xt
+                else:
+                    xc_kernel = xc_rotate * homothety
+                    xt_kernel = xt_rotate * homothety
             else:
-                xc_rotate_homoth = xc*homothety
-                xt_rotate_homoth = xt*homothety
+                raise ValueError("Unknown type_gen")
 
             # If `self.h` is specified, then we create a multi-output GP. Otherwise, we
             # use a simple regular GP.
@@ -96,8 +111,8 @@ class GPGeneratorRotate(SyntheticGenerator):
                 with stheno.Measure() as prior:
                     f = stheno.GP(self.kernel)
                     # Construct FDDs for the context and target points.
-                    fc = f(xc_rotate_homoth, self.noise)
-                    ft = f(xt_rotate_homoth, self.noise)
+                    fc = f(xc_kernel, self.noise)
+                    ft = f(xt_kernel, self.noise)
             else:
                 with stheno.Measure() as prior:
                     # Construct latent processes and initialise output processes.

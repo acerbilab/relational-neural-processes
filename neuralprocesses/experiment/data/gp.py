@@ -84,6 +84,7 @@ def setup(
         x_range_target=x_range_target,
         device=device,
         mean_diff=config["mean_diff"],
+        type_gen="train",
     )[name]
 
     gen_cv = lambda: nps.construct_predefined_gens(
@@ -100,6 +101,7 @@ def setup(
         x_range_target=x_range_target,
         device=device,
         mean_diff=config["mean_diff"],
+        type_gen="val",
     )[name]
 
     def gens_eval():
@@ -137,6 +139,7 @@ def setup(
                     x_range_context=x_range_context,
                     x_range_target=x_range_target,
                     mean_diff=config["mean_diff"],
+                    type_gen="eval",
                 )[args.data],
             )
             for eval_name, x_range_context, x_range_target in [
@@ -163,7 +166,10 @@ names = [
     "bo_matern",
     "bo_single",
     "bo_sumprod",
-    "gp_rotate",
+    "rotate_isotropic",
+    "rotate_anisotropic",
+    "rotate_isotropic_mismatch",
+    "rotate_anisotropic_mismatch"
 ]
 
 for name in names:

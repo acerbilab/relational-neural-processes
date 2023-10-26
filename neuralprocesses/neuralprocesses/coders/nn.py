@@ -255,7 +255,7 @@ class RelationalMLP:
                                                        self.sparse,
                                                        self.k,
                                                        self.non_equivariant_dim)
-
+        print(relational_encoding.shape)
         batch_size, encoding_size, filter_size = relational_encoding.shape
         relational_encoding = relational_encoding.view(batch_size * encoding_size, filter_size)
 

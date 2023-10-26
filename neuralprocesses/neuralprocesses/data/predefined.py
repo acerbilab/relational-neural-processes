@@ -26,6 +26,7 @@ def construct_predefined_gens(
     pred_logpdf=True,
     pred_logpdf_diag=True,
     device="cpu",
+    type_gen="train",
 ):
     """Construct a number of predefined data generators.
 
@@ -43,6 +44,7 @@ def construct_predefined_gens(
             target points. Defaults to `(-2, 2)`.
         mean_diff (float, optional): Difference in means in the samples of
             :class:`neuralprocesses.data.mixgp.MixtureGPGenerator`.
+        type_gen: dataset type
         pred_logpdf (bool, optional): Also compute the logpdf of the target set given
             the context set under the true GP. Defaults to `True`.
         pred_logpdf_diag (bool, optional): Also compute the logpdf of the target set
@@ -154,7 +156,7 @@ def construct_predefined_gens(
         seed=seed,
     )
 
-    gens["gp_rotate"] = GPGeneratorRotate(
+    gens["rotate_isotropic"] = GPGeneratorRotate(
         dtype,
         seed=seed,
         noise=0.05,
@@ -164,6 +166,53 @@ def construct_predefined_gens(
         num_target=UniformDiscrete(35 * dim_x, 35 * dim_x),
         pred_logpdf=pred_logpdf,
         pred_logpdf_diag=pred_logpdf_diag,
+        type_gen=None,
+        kernel_type="isotropic",
+        **config,
+    )
+
+    gens["rotate_anisotropic"] = GPGeneratorRotate(
+        dtype,
+        seed=seed,
+        noise=0.05,
+        kernel=EQ().stretch(factor * 1),
+        # We need to decide this number
+        num_context=UniformDiscrete(1, 70),
+        num_target=UniformDiscrete(35 * dim_x, 35 * dim_x),
+        pred_logpdf=pred_logpdf,
+        pred_logpdf_diag=pred_logpdf_diag,
+        type_gen=None,
+        kernel_type="anisotropic",
+        **config,
+    )
+
+    gens["rotate_isotropic_mismatch"] = GPGeneratorRotate(
+        dtype,
+        seed=seed,
+        noise=0.05,
+        kernel=EQ().stretch(factor * 1),
+        # We need to decide this number
+        num_context=UniformDiscrete(1, 70),
+        num_target=UniformDiscrete(35 * dim_x, 35 * dim_x),
+        pred_logpdf=pred_logpdf,
+        pred_logpdf_diag=pred_logpdf_diag,
+        type_gen=type_gen,
+        kernel_type="isotropic",
+        **config,
+    )
+
+    gens["rotate_anisotropic_mismatch"] = GPGeneratorRotate(
+        dtype,
+        seed=seed,
+        noise=0.05,
+        kernel=EQ().stretch(factor * 1),
+        # We need to decide this number
+        num_context=UniformDiscrete(1, 70),
+        num_target=UniformDiscrete(35 * dim_x, 35 * dim_x),
+        pred_logpdf=pred_logpdf,
+        pred_logpdf_diag=pred_logpdf_diag,
+        type_gen=type_gen,
+        kernel_type="anisotropic",
         **config,
     )
 
