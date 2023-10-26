@@ -1,11 +1,9 @@
 import lab as B
 import numpy as np
 from plum import convert
-import torch
-import torchvision
 
+import torch
 from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
 
 from .data import DataGenerator
 from ..dist import AbstractDistribution
@@ -21,7 +19,8 @@ class ImageGenerator(DataGenerator):
         dtype (dtype): Data type.
         rootdir (str): Root or image dataset directory.
         dataset (str): Image data used to construct the interpolation tasks. Must be in
-            "mnist", "mnist_trans", "mnist16", "mnist16_trans", "celeba16", "celeba32".
+            "mnist", "mnist_{trans, toroid}", "mnist16", "mnist16_{trans, toroid}",
+            "celeba16", "celeba32".
         seed (int, optional): Seed. Defaults to 0.
         num_tasks (int, optional): Number of batches in an epoch. Defaults to 2^14.
         batch_size (int, optional): Number of tasks per batch. Defaults to 16.
@@ -49,9 +48,14 @@ class ImageGenerator(DataGenerator):
         data (:class:`torchvision.datasets.VisionDataset`): Loaded image data.
         data_inds (:class:`neuralprocesses.dist.uniform.UniformDiscrete`):
             Distribution used in image selection.
+        trans (bool): Apply random translation to image and pad with zeros.
+        trans_toroid (bool): Apply random translation to image and wrap around borders.
+        translation (:class:`neuralprocesses.dist.uniform.UniformDiscrete`):
+            Distribution used to sample the random translations applied to image.
         dim_y (int): Number of channels.
+        image_size (int): Number of pixels from side to side.
         n_tot (int): Number of pixels.
-        grid (`torch.Tensor`): Pixel coordinates.
+        grid (`torch.Tensor`): Pixel coordinates in 0...1 range.
     """
 
     def __init__(
@@ -72,37 +76,30 @@ class ImageGenerator(DataGenerator):
         # load image data
         assert subset in ["train", "valid", "test"]
 
+        data_setup = dataset.split('_')  # dataset, condition (optional)
+        dataset = data_setup[0]
+        self.trans = False
+        self.trans_toroid = False
+
+        if len(data_setup) > 1:
+            assert dataset.startswith("mnist")
+            if data_setup[1] == "trans":
+                self.trans = True
+            if data_setup[1] == "toroid":
+                self.trans_toroid = True
+
         if dataset == "mnist":
             data = datasets.MNIST(
                 root=rootdir,
-                train=not(subset == "test"),
+                train=not (subset == "test"),
                 download=load_data,
                 transform=transforms.ToTensor()
             )
-        elif dataset == "mnist_trans":
-            cropper = torchvision.transforms.RandomCrop(size=(28, 28))
-            padder = torchvision.transforms.Pad(padding=5)
-            totensor = transforms.ToTensor()
-            func = lambda x: totensor(cropper(padder(x)))
-            data = datasets.MNIST(
-		root=rootdir,
-		train=not(subset == "test"),
-		download=load_data,
-		transform=func
-	    )
         elif dataset == "mnist16":
             transforms_list = [transforms.Resize(16), transforms.ToTensor()]
             data = datasets.MNIST(
                 root=rootdir,
-                train=not(subset == "test"),
-                download=load_data,
-                transform=transforms.Compose(transforms_list)
-            )
-        elif dataset == "mnist16_trans":
-            transforms_list = [transforms.Pad(padding=5), transforms.RandomCrop(size=(28, 28)), transforms.Resize(16), transforms.ToTensor()]
-            data = datasets.MNIST(
-                root=rootdir,
-                train=not(subset == "test"),
+                train=not (subset == "test"),
                 download=load_data,
                 transform=transforms.Compose(transforms_list)
             )
@@ -126,16 +123,14 @@ class ImageGenerator(DataGenerator):
             raise ValueError(f'Unknown dataset {dataset}.')
 
         # random image selection setup
-        #torch.manual_seed(seed)
-        #self.dataloader = DataLoader(data, batch_size=batch_size, shuffle=True)
         self.data = data
         self.data_inds = UniformDiscrete(0, len(data)-1)
 
         # image properties
-        self.dim_y, _, image_size = data[0][0].shape
-        self.n_tot = image_size**2
-        axis = torch.arange(image_size, dtype=torch.float32)/(image_size-1)
-        grid = torch.stack((axis.repeat_interleave(image_size), axis.repeat(image_size)))
+        self.dim_y, _, self.image_size = data[0][0].shape
+        self.n_tot = self.image_size**2
+        axis = torch.arange(self.image_size, dtype=torch.float32)/(self.image_size-1)
+        grid = torch.stack((axis.repeat_interleave(self.image_size), axis.repeat(self.image_size)))
         self.grid = grid.to(device)
 
         # random context selection setup
@@ -143,11 +138,36 @@ class ImageGenerator(DataGenerator):
         self.num_context = convert(num_context, AbstractDistribution)
         self.numpygen = np.random.default_rng(seed=seed)
 
+        # transformation
+        max_trans = int(self.image_size/2) if self.trans_toroid else int(self.image_size/4)
+        self.translation = UniformDiscrete(-max_trans, max_trans)
+
+    def random_trans(self, imarr):
+        newim = torch.zeros_like(imarr)
+        self.state, trans = self.translation.sample(self.state, self.int64, 2)
+        a1 = max(0, -1 * trans[0])
+        a2 = max(0, -1 * trans[1])
+        b1 = min(self.image_size - trans[0], self.image_size)
+        b2 = min(self.image_size - trans[1], self.image_size)
+        c1 = max(0, trans[0])
+        c2 = max(0, trans[1])
+        d1 = min(self.image_size + trans[0], self.image_size)
+        d2 = min(self.image_size + trans[1], self.image_size)
+        newim[a1:b1, a2:b2] = imarr[c1:d1, c2:d2]
+        if self.trans_toroid:
+            newim[0:a1, a2:b2] = imarr[d1:self.image_size, c2:d2]
+            newim[a1:b1, 0:a2] = imarr[c1:d1, d2:self.image_size]
+            newim[b1:self.image_size, a2:b2] = imarr[0:c1, c2:d2]
+            newim[a1:b1, b2:self.image_size] = imarr[c1:d1, 0:c2]
+        return newim
+
     def generate_batch(self):
         with B.on_device(self.device):
-            #features, labels = next(iter(self.dataloader))
             self.state, inds = self.data_inds.sample(self.state, self.int64, self.batch_size)
             features = torch.cat([self.data[ind][0] for ind in inds])
+
+            if self.trans or self.trans_toroid:
+                features = torch.cat([self.random_trans(im) for im in features])
 
             # target features
             target_x = self.grid.repeat([self.batch_size, 1, 1])

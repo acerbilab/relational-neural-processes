@@ -172,7 +172,7 @@ def main(**kw_args):
     parser.add_argument(
         "--image-dataset",
         type=str,
-        choices=["mnist", "mnist_trans", "mnist16", "mnist16_trans", "celeba32", "celeba16"],
+        choices=["mnist", "mnist_trans", "mnist_toroid", "mnist16", "mnist16_trans", "mnist16_toroid", "celeba32", "celeba16"],
     )
     parser.add_argument("--patch", type=str)
     parser.add_argument("--seed", type=int, default=1)
