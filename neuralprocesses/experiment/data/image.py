@@ -11,12 +11,10 @@ __all__ = []
 
 
 def toroid_difference(relational_encoding_type, xc, yc, xt, L=None, **kwargs):
+    "Calculate difference between pixel locations on a torus."
 
     if relational_encoding_type != 'simple':
         raise NotImplementedError
-
-    if L is None:
-        raise ValueError
 
     if len(kwargs.get('non_equivariant_dim', [])) > 0:
         raise NotImplementedError
@@ -90,7 +88,7 @@ def setup(
         custom_comparison = partial(toroid_difference, L=gen_train.image_size)
         # pairwise comparison output dimension
         comparison_dim = config["dim_x"]
-        # custom comparison function as (callable, int)
+        # custom comparison function
         config["comparison_function"] = (custom_comparison, comparison_dim, 2*comparison_dim)
 
     # test setup
