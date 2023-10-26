@@ -108,6 +108,9 @@ python train.py \
 ```
 with x in `(1, 10)` and m in `(rgnp, gnp, agnp, convgnp)`
 
+## Customize your own comparison function
+Our repository provide an easy way to customize your own comparison function. You can define your own comparison function in `comparison_functions.py`, and then use it in `train.py` by specifying `--comparison-function=“your_comparison_function”`.
+
 
 ## Citation
 ```
