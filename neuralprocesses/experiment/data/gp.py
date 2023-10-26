@@ -14,7 +14,7 @@ def setup(
     config["dim_x"] = args.dim_x
     config["dim_y"] = args.dim_y
 
-    # k is for sparse FullRCNP, we set 0.8 as the ratio
+    # k is for sparse FullRCNP
     ratio = 0.1
     if name in ["eq", "matern", "weakly-periodic"]:
         config["k"] = int(30 * args.dim_x * ratio)
@@ -80,7 +80,6 @@ def setup(
         dim_y=args.dim_y,
         pred_logpdf=False,
         pred_logpdf_diag=False,
-        type_gen="train",
         x_range_context=x_range_context,
         x_range_target=x_range_target,
         device=device,
@@ -96,7 +95,6 @@ def setup(
         dim_y=args.dim_y,
         pred_logpdf=True,
         pred_logpdf_diag=True,
-        type_gen="test",
         # comment this out later
         x_range_context=x_range_context,
         x_range_target=x_range_target,
@@ -135,7 +133,6 @@ def setup(
                     dim_y=args.dim_y,
                     pred_logpdf=True,
                     pred_logpdf_diag=True,
-                    type_gen="eval",
                     device=device,
                     x_range_context=x_range_context,
                     x_range_target=x_range_target,

@@ -54,7 +54,6 @@ class GPGeneratorRotate(SyntheticGenerator):
         """
         with B.on_device(self.device):
             set_batch, xcs, xc, nc, xts, xt, nt = new_batch(self, self.dim_y)
-            #print(self.type_gen)
 
             dim_x = xc.shape[-1]
             normal_sampler = stheno.Normal(1)
@@ -120,25 +119,12 @@ class GPGeneratorRotate(SyntheticGenerator):
                         self.noise,
                     )
 
-            # dim_x = xc.shape[-1]
-            #
-            # M = torch.randn(dim_x, dim_x)
-            # rotate, _ = torch.linalg.qr(M)
-            #
-            # if torch.det(rotate) < 0:
-            #     rotate[:, 0] = -rotate[:, 0]
-            #
-            # rotate = B.cast(xc.dtype, rotate).to(self.device)
-            #
-            # xc_rotate = B.matmul(xc, rotate)
-            # xt_rotate = B.matmul(xt, rotate)
-
             # Sample context and target set.
             self.state, yc_temp, yt_temp = prior.sample(self.state, fc, ft)
             mean_function_length_scale = B.cast(xc.dtype, B.linspace(0.5, 2, dim_x))
 
-            yc = yc_temp + torch.sum(xc_rotate.unsqueeze(2) ** 2 / mean_function_length_scale ** 2, axis=-1)
-            yt = yt_temp + torch.sum(xt_rotate.unsqueeze(2) ** 2 / mean_function_length_scale ** 2, axis=-1)
+            yc = yc_temp + B.sum(xc_rotate.unsqueeze(2) ** 2 / mean_function_length_scale ** 2, axis=-1)
+            yt = yt_temp + B.sum(xt_rotate.unsqueeze(2) ** 2 / mean_function_length_scale ** 2, axis=-1)
 
             # Make the new batch.
             batch = {}

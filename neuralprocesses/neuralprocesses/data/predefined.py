@@ -109,17 +109,7 @@ def construct_predefined_gens(
             ("bo_sumprod", "sumprod"),
         ]
     }
-    gens["gp_rotate"] = GPGeneratorRotate(
-        dtype,
-        seed=seed,
-        noise=0.05,
-        kernel=EQ().stretch(factor * 1),
-        type_gen=type_gen,
-        # We need to decide this number
-        num_context=UniformDiscrete(1, 70),
-        num_target=UniformDiscrete(35 * dim_x, 35 * dim_x),
-        **config,
-    )
+
     # Previously, the maximum number of context points was `75 * dim_x`. However, if
     # `dim_x == 1`, then this is too high. We therefore change that case, and keep all
     # other cases the same.
@@ -170,8 +160,10 @@ def construct_predefined_gens(
         noise=0.05,
         kernel=EQ().stretch(factor * 1),
         # We need to decide this number
-        num_context=UniformDiscrete(1, 100),
-        num_target=UniformDiscrete(50 * dim_x, 50 * dim_x),
+        num_context=UniformDiscrete(1, 70),
+        num_target=UniformDiscrete(35 * dim_x, 35 * dim_x),
+        pred_logpdf=pred_logpdf,
+        pred_logpdf_diag=pred_logpdf_diag,
         **config,
     )
 
