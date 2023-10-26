@@ -281,7 +281,7 @@ def main(**kw_args):
         *(args.subdir or ()),
         data_dir,
         *((f"x{args.dim_x}_y{args.dim_y}",) if hasattr(args, "dim_x") else ()),
-        *((f"{args.model}_{args.comparison_function}",) if args.model in ["rcnp", "rgnp", "fullrcnp", "fullrgnp",] else args.model),
+        f"{args.model}_{args.comparison_function}" if args.model in ["rcnp", "rgnp", "fullrcnp", "fullrgnp",] else args.model,
         *((args.arch,) if hasattr(args, "arch") else ()),
         args.objective,
         str(args.seed),
