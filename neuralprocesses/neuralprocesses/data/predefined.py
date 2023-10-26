@@ -114,10 +114,10 @@ def construct_predefined_gens(
             seed=seed,
             noise=0.05,
             kernel=EQ().stretch(factor * 1),
-            num_context=UniformDiscrete(1, 20 * dim_x),
-            num_target=UniformDiscrete(30 * dim_x, 30 * dim_x),
-            pred_logpdf=pred_logpdf,
-            pred_logpdf_diag=pred_logpdf_diag,
+            type_gen=type_gen,
+            # We need to decide this number
+            num_context=UniformDiscrete(1, 70),
+            num_target=UniformDiscrete(35 * dim_x, 35 * dim_x),
             **config,
         )
     # Previously, the maximum number of context points was `75 * dim_x`. However, if
