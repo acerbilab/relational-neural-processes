@@ -70,7 +70,6 @@ class GPGeneratorRotate(SyntheticGenerator):
         """
         with B.on_device(self.device):
             set_batch, xcs, xc, nc, xts, xt, nt = new_batch(self, self.dim_y)
-            
 
             # If `self.h` is specified, then we create a multi-output GP. Otherwise, we
             # use a simple regular GP.
@@ -125,7 +124,7 @@ class GPGeneratorRotate(SyntheticGenerator):
             X = torch.zeros(dimx, dimx, dtype=torch.float64)  # there seems to be some issues with the types. So I just added a bunch of them
             X[0, :] = torch.from_numpy(normalsampler.sample(dimx).astype(float))  # the first vector is just normal, I'm using the normal distribution from the package to prevent compatbility issues.
             X[0, :] = X[0, :]/B.sqrt(torch.sum(X[0, :]**2))
-            for j in range(1,dimx):
+            for j in range(1, dimx):
                 Xtemp = torch.from_numpy(normalsampler.sample(dimx).astype(float))
                 for jj in range(0, j):
                     Xtemp = Xtemp-X[jj, :]*B.sum(Xtemp*X[jj, :])/B.sum(X[jj, :]**2)  # gram schmidt
@@ -138,7 +137,7 @@ class GPGeneratorRotate(SyntheticGenerator):
             xt_rotate = torch.matmul(xt, X)
             # in the end, the matrix X is a random rotation matrix
             self.state, yc_temp, yt_temp = prior.sample(self.state, fc, ft)
-            mean_function_length_scale = torch.linspace(0.5,2,dimx)
+            mean_function_length_scale = torch.linspace(0.5, 2, dimx)
 
             yc = yc_temp + torch.sum(xc_rotate.unsqueeze(2)**2/mean_function_length_scale**2, axis=-2)
             yt = yt_temp + torch.sum(xt_rotate.unsqueeze(2)**2/mean_function_length_scale**2, axis=-2)
