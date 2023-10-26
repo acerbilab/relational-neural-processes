@@ -7,7 +7,6 @@ from neuralprocesses.dist import UniformDiscrete
 
 __all__ = []
 
-
 def setup(
     args,
     config,
@@ -37,16 +36,17 @@ def setup(
     config["fix_noise"] = config["image_dataset"].startswith("mnist")
     config["fix_noise_epochs"] = args.fix_noise_epochs or 50
 
-    # data generators
-    this_seeds = seeds or [10, 20]
+    # where images are stored
     rootdir = os.path.join(*args.datadir)
     os.makedirs(rootdir, exist_ok=True)
-    dataset = config["image_dataset"]
+
+    # data generators
+    this_seeds = seeds or [10, 20]
 
     gen_train = nps.ImageGenerator(
         torch.float32,
         rootdir,
-        dataset,
+        config["image_dataset"],
         seed=this_seeds[0],
         num_tasks=num_tasks_train,
         load_data=True,
@@ -56,7 +56,7 @@ def setup(
     gen_cv = lambda: nps.ImageGenerator(
         torch.float32,
         rootdir,
-        dataset,
+        config["image_dataset"],
         seed=this_seeds[1],
         num_tasks=num_tasks_cv,
         load_data=False,
@@ -75,8 +75,8 @@ def setup(
                 nps.ImageGenerator(
                     torch.float32,
                     rootdir,
-                    dataset,
-                    seed=30,
+                    config["image_dataset"],
+                    seed=40,
                     num_tasks=num_tasks_eval,
                     load_data=False,
                     subset="test",
