@@ -21,6 +21,8 @@ class GPGeneratorRotate(SyntheticGenerator):
             the context set under the true GP. Defaults to `True`.
         pred_logpdf_diag (bool, optional): Also compute the logpdf of the target set
             given the context set under the true diagonalised GP. Defaults to `True`.
+        type_gen (str, optional): dataset type. Defaults to 'train'.
+        kernel_type (str, optional): kernel type. Defaults to 'isotropic'.
 
     Attributes:
         kernel (:class:`stheno.Kernel`): Kernel of the GP.

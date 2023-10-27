@@ -44,7 +44,7 @@ def construct_predefined_gens(
             target points. Defaults to `(-2, 2)`.
         mean_diff (float, optional): Difference in means in the samples of
             :class:`neuralprocesses.data.mixgp.MixtureGPGenerator`.
-        type_gen: dataset type
+        type_gen (str, optional): dataset type. Defaults to 'train'.
         pred_logpdf (bool, optional): Also compute the logpdf of the target set given
             the context set under the true GP. Defaults to `True`.
         pred_logpdf_diag (bool, optional): Also compute the logpdf of the target set

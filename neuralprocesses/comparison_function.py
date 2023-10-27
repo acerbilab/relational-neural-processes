@@ -13,6 +13,20 @@ def distance(relational_encoding_type,
              k: Optional[int] = None,
              non_equivariant_dim: Optional[list] = None,
              ):
+    """
+
+    Args:
+        relational_encoding_type (str): type of relational_encoding.
+        xc (tensor): context set features
+        yc (tensor): context set outputs
+        xt (tensor): target set features
+        sparse (bool, optional): whether to use sparse rcnp or not. Defaults to False.
+        k (int, optional): for sparse rcnp, we only choose top-k nearest context points for encoding.
+        non_equivariant_dim (list, optional): indicates which dimensions are non-equivariant. Defaults to an empty list.
+
+    Returns:
+        encoding (tensor): relational encoding.
+    """
     batch_size, set_size, feature_dim = xc.shape
     _, target_set_size, _ = xt.shape
     _, _, out_dim = yc.shape
@@ -146,6 +160,20 @@ def difference(relational_encoding_type,
                k: Optional[int] = None,
                non_equivariant_dim: Optional[list] = None,
                ):
+    """
+
+    Args:
+        relational_encoding_type (str): type of relational_encoding.
+        xc (tensor): context set features
+        yc (tensor): context set outputs
+        xt (tensor): target set features
+        sparse (bool, optional): whether to use sparse rcnp or not. Defaults to False.
+        k (int, optional): for sparse rcnp, we only choose top-k nearest context points for encoding.
+        non_equivariant_dim (list, optional): indicates which dimensions are non-equivariant. Defaults to an empty list.
+
+    Returns:
+        encoding (tensor): relational encoding.
+    """
     batch_size, set_size, feature_dim = xc.shape
     _, target_set_size, _ = xt.shape
     _, _, out_dim = yc.shape
@@ -246,6 +274,20 @@ def rotate(relational_encoding_type,
            k: Optional[int] = None,
            non_equivariant_dim: Optional[list] = None,
            ):
+    """
+
+    Args:
+        relational_encoding_type (str): type of relational_encoding.
+        xc (tensor): context set features
+        yc (tensor): context set outputs
+        xt (tensor): target set features
+        sparse (bool, optional): whether to use sparse rcnp or not. Defaults to False.
+        k (int, optional): for sparse rcnp, we only choose top-k nearest context points for encoding.
+        non_equivariant_dim (list, optional): indicates which dimensions are non-equivariant. Defaults to an empty list.
+
+    Returns:
+        encoding (tensor): relational encoding.
+    """
     batch_size, set_size, feature_dim = xc.shape
     _, target_set_size, _ = xt.shape
     _, _, out_dim = yc.shape

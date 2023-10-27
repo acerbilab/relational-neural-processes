@@ -117,6 +117,19 @@ def code(coder: Union[Linear, MLP], xz, z: B.Numeric, x, **kw_args):
 
 @register_module
 class Transformer:
+    """Transformer.
+
+    Args:
+        dim_x (int): Input dimensionality.
+        dim_y (int): Output dimensionality.
+        dim_embedding (int): Dimensionality of the embedding.
+        num_layers (int): Number of layers in the encoder.
+        depth (int): Depth of the encoder.
+        num_heads (int): Number of heads.
+        width (int): Width of the hidden layers
+        dtype (dtype, optional): Data type.
+
+    """
     def __init__(
         self,
         dim_x: int,
@@ -186,9 +199,20 @@ class RelationalMLP:
         width (int, optional): Width of the hidden layers
         nonlinearity (function, optional): Nonlinearity.
         dtype (dtype, optional): Data type.
+        comparison_function (callable): comparison function used for relational encoding.
+        relational_encoding_type (str, optional): type of relational_encoding.
+        non_equivariant_dim: indicates which dimensions are non-equivariant. Defaults to an empty list.
+        sparse (bool, optional): whether to use sparse rcnp or not. Defaults to False.
+        k (int, optional): for sparse rcnp, we only choose top-k nearest context points for encoding.
 
     Attributes:
         net (object): MLP, but which expects a different data format.
+        relational_out_dim (int): Output dimensionality.
+        comparison_function (callable): comparison function used for relational encoding.
+        relational_encoding_type (str, optional): type of relational_encoding.
+        non_equivariant_dim: indicates which dimensions are non-equivariant. Defaults to an empty list.
+        sparse (bool, optional): whether to use sparse rcnp or not. Defaults to False.
+        k (int, optional): for sparse rcnp, we only choose top-k nearest context points for encoding.
     """
 
     def __init__(
