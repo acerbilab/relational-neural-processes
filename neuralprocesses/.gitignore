@@ -34,3 +34,5 @@ outcmaes*
 .ipynb_checkpoints/*
 
 evaluate.py
+
+.idea
