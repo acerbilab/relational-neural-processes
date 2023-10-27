@@ -109,11 +109,10 @@ python train.py \
 with x in `(1, 10)` and m in `(rgnp, gnp, agnp, convgnp)`
 
 ## Customize your own comparison function
-Our repository provide an easy way to customize your own comparison function. 
+Most examples in our paper use the `difference` and `distance` comparison functions that are available as built-in options. 
+However, you can also write your own comparison function and pass it to the model constructor. 
 
-To do that, you should first specify `--comparison-function=“custom”`, then write your own comparison function in your experiment
-setup file, you can find a template custom comparison function under `experiments/data/image.py`.
-
+See `neuralprocesses/comparison_functions.py` for example comparison functions and `experiments/data/image.py` for an example on how to pass a custom comparison function to the model constructor.
 
 ## Citation
 ```
