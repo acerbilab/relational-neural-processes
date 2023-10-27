@@ -31,7 +31,7 @@ def setup(
         if name in ["bo_fixed", "bo_matern", "bo_single", "bo_sumprod"]:
             x_range_context = (-1, 1)
             x_range_target = (-1, 1)
-        elif name == "gp_rotate":
+        elif name in ["rotate_isotropic", "rotate_anisotropic", "rotate_isotropic_mismatch", "rotate_anisotropic_mismatch"]:
             x_range_context = (-4, 0)
             x_range_target = (-4, 0)
         else:
@@ -111,7 +111,7 @@ def setup(
             # check if BO tasks need OOID
             x_range_context_ooid = (-1, 1)
             x_range_target_ooid = (-1, 1)
-        elif args.data == "gp_rotate":
+        elif args.data in ["rotate_isotropic", "rotate_anisotropic", "rotate_isotropic_mismatch", "rotate_anisotropic_mismatch"]:
             x_range_context_int = (-4, 0)
             x_range_target_int = (-4, 0)
             x_range_context_ooid = (0, 4)
