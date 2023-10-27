@@ -20,7 +20,7 @@ pip install -r requirements.txt
 ```
 
 
-To use our RCNP models, you can specify `--model` as one of `[rcnp, rgnp, fullrcnp, fullrgnp]`, where the latter two represents the full version of our models. You can also choose comparison function for relational encoding by using `--comparison-function`, where `difference` stands for encoding translational equivariance, and `distance` stands for encoding rigid transformations.
+To use our RCNP models, you can specify `--model` as one of `[rcnp, rgnp, fullrcnp, fullrgnp]`, where the latter two represents the full version of our models. You can also choose comparison function for relational encoding by using `--comparison-function`, where `difference` stands for encoding translational equivariance, and `distance` stands for encoding equivariance for rigid transformations.
 
 We also support partial encoding, where some dimensions of the data do not need relational encoding, you can specify the dimensions that do not require relational encoding through `--non-equivariant-dim`, e.g., `--non-equivariant-dim=“0,1”` means the first and the second dimension will not be encoded by relational encoder.
 
@@ -87,9 +87,9 @@ with x in `(1, 10)` and m in `(rgnp, gnp, agnp, convgnp)`
 
 
 ## Reaction-Diffusion Model
-For the Reaction-Diffusion example, all the parameters selected for the experiments are listed in `neuralprocesses/experiments/data/cancer.py`. 
+For the Reaction-Diffusion example, all the parameters selected for the experiments are listed in `experiments/data/cancer.py`. 
 
-The dataset used from the Reaction-Diffusion simulator is stored in the `neuralprocesses/experiments/data/dataset_cancer` folder, along with the python file that produces simulations (`RD-simulator.py`).
+The dataset used from the Reaction-Diffusion simulator is stored in the `experiments/data/dataset_cancer` folder, along with the python file that produces simulations (`RD-simulator.py`).
 To run experiments, use, with x the seed chosen and m the method chosen `(rcnp, rgnp, cnp, gnp, acnp, agnp)`:
 ```
 python train.py \
@@ -109,7 +109,10 @@ python train.py \
 with x in `(1, 10)` and m in `(rgnp, gnp, agnp, convgnp)`
 
 ## Customize your own comparison function
-Our repository provide an easy way to customize your own comparison function. You can define your own comparison function in `comparison_functions.py`, and then use it in `train.py` by specifying `--comparison-function=“your_comparison_function”`.
+Our repository provide an easy way to customize your own comparison function. 
+
+To do that, you should first specify `--comparison-function=“custom”`, then write your own comparison function in your experiment
+setup file, you can find a template custom comparison function under `experiments/data/image.py`.
 
 
 ## Citation
