@@ -104,18 +104,17 @@ def construct_rnp(
     else:
         if not isinstance(comparison_function, tuple):
             raise ValueError("The comparison function must be a string or a tuple.")
-        if len(comparison_function) != 3:
-            raise ValueError("A custom comparison function must be a tuple (callable, int, int).")
+        if len(comparison_function) != 2:
+            raise ValueError("A custom comparison function must be a tuple (callable, int).")
 
         have_callable = callable(comparison_function[0])
         have_dim = isinstance(comparison_function[1], int)
-        have_dim_full = isinstance(comparison_function[2], int)
-        if have_callable and have_dim and have_dim_full:
+        if have_callable and have_dim:
                 comparison_func = comparison_function[0]
                 comparison_dim = comparison_function[1]
-                comparison_dim_full = comparison_function[2]
+                comparison_dim_full = 2 * comparison_dim
         else:
-            raise ValueError("A custom comparison function must be a tuple (callable, int, int).")
+            raise ValueError("A custom comparison function must be a tuple (callable, int).")
 
     # Make sure that `dim_yc` is initialised and a tuple.
     dim_yc = convert(dim_yc or dim_y, tuple)
@@ -127,12 +126,6 @@ def construct_rnp(
         raise ValueError(
             "Can only use the same encoder for all context sets if the context sets "
             "are of the same dimensionality, but they are not."
-        )
-
-    # Check if full relational encoding can be used.
-    if relational_encoding_type == "full" and len(dim_yc) > 1:
-        raise NotImplementedError(
-            "Full relational encoding over multiple context sets is not available."
         )
 
     # Check if full relational encoding can be used.

@@ -89,7 +89,7 @@ def setup(
         # pairwise comparison output dimension
         comparison_dim = config["dim_x"]
         # custom comparison function
-        config["comparison_function"] = (custom_comparison, comparison_dim, 2*comparison_dim)
+        config["comparison_function"] = (custom_comparison, comparison_dim)
 
     # test setup
     n_min = int(gen_train.n_tot/100)
