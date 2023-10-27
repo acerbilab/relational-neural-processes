@@ -73,7 +73,7 @@ def construct_rnp(
             this open interval.
         dtype (dtype, optional): Data type.
         comparison_function (str or tuple, optional): comparison function used for relational encoding.
-            Defaults to 'different'.
+            Defaults to 'difference'.
         relational_encoding_type (str, optional): type of relational_encoding, choose between 'simple' or 'full'
         non_equivariant_dim: indicates which dimensions are non-equivariant. Defaults to an empty list.
         sparse (bool, optional): whether to use sparse rcnp or not. Defaults to False.
