@@ -1,11 +1,29 @@
 import os
 import torch
+from functools import partial
 
 import neuralprocesses.torch as nps
 from .util import register_data
 from neuralprocesses.dist import UniformDiscrete
+from neuralprocesses.comparison_function import difference
 
 __all__ = []
+
+
+def toroid_difference(relational_encoding_type, xc, yc, xt, L=None, **kwargs):
+    "Calculate difference between pixel locations on a torus."
+
+    if relational_encoding_type != 'simple':
+        raise NotImplementedError
+
+    if len(kwargs.get('non_equivariant_dim', [])) > 0:
+        raise NotImplementedError
+
+    diff_x = difference(relational_encoding_type, xc, yc, xt, **kwargs)
+    dim = xt.shape[-1]
+    diff_x[:, :, :dim] = (((L-1) * diff_x[:, :, :dim]) % L) / (L-1)
+    return diff_x
+
 
 def setup(
     args,
@@ -63,6 +81,15 @@ def setup(
         subset="valid",
         device=device,
     )
+
+    # it is possible to run the image experiment with a custom comparison function
+    if config["comparison_function"] == "custom":
+        # calculate the difference between pixel locations on a torus
+        custom_comparison = partial(toroid_difference, L=gen_train.image_size)
+        # pairwise comparison output dimension
+        comparison_dim = config["dim_x"]
+        # custom comparison function
+        config["comparison_function"] = (custom_comparison, comparison_dim, 2*comparison_dim)
 
     # test setup
     n_min = int(gen_train.n_tot/100)
