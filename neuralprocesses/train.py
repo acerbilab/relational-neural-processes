@@ -182,9 +182,9 @@ def main(**kw_args):
     parser.add_argument(
         "--comparison-function",
         type=str,
-        choices=["distance", "difference", "rotate"],
+        choices=["distance", "difference", "rotate", "custom"],
         default="difference")
-    parser.add_argument("--non-equivariant-dim", type=lambda s: [int(item) for item in s.split(',')], default=None)
+    parser.add_argument("--non-equivariant-dim", type=lambda s: [int(item) for item in s.split(',')], default=[])
     parser.add_argument("--fix-noise-epochs", type=int)
     if kw_args:
         # Load the arguments from the keyword arguments passed to the function.
@@ -241,7 +241,7 @@ def main(**kw_args):
     }:
         del args.arch
 
-    if args.dim_x == 1 and args.model in ['rcnp', 'rgnp'] and args.non_equivariant_dim is not None:
+    if args.dim_x == 1 and args.model in ['rcnp', 'rgnp'] and len(args.non_equivariant_dim) > 0:
         out.out("Can't use RCNP if data does not require relational encoding")
         sys.exit(1)
 
