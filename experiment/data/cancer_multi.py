@@ -20,8 +20,6 @@ def setup(args, config, *, num_tasks_train, num_tasks_cv, num_tasks_eval, device
     config["unet_strides"] = (1,) + (2,) * 6
     config["unet_channels"] = (64,) * 7
     config["num_layers"] = 4
-    config["dim_embedding"] = 128
-    config["dim_relational_embedding"] = 128
     config["num_basis_functions"] = 32
 
 
