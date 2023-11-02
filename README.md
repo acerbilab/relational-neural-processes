@@ -2,7 +2,6 @@
 
 This repository provides the implementation and code used in the experiments for the article *Practical Equivariances via Relational Conditional Neural Processes* (Huang et al., NeurIPS 2023) [[1]](#citation).
 
-_____
 **Note:** Our implementations build on the [neuralprocesses](http://github.com/wesselb/neuralprocesses) library by Wessel Bruinsma. 
 You can find further details on its structure and the dependencies at the github website.
 
