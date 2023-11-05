@@ -1,6 +1,7 @@
 # Practical Equivariances via Relational Conditional Neural Processes
 
 This repository provides the implementation and code used in the experiments for the article *Practical Equivariances via Relational Conditional Neural Processes* (Huang et al., NeurIPS 2023) [[1]](#citation).
+The full paper can be found at [arXiv](https://arxiv.org/abs/2306.10915).
 
 **Note:** Our implementations build on the [neuralprocesses](http://github.com/wesselb/neuralprocesses) library by Wessel Bruinsma. 
 You can find further details on its structure and the dependencies at the github website.
@@ -116,14 +117,17 @@ However, you can also write your own comparison function and pass it to the mode
 See `neuralprocesses/comparison_functions.py` for example comparison functions and `experiments/data/image.py` for an example on how to pass a custom comparison function to the model constructor.
 
 ## Citation
+Please cite our paper if you find this work useful for your research
 ```
 @article{huang2023practical,
   title={Practical Equivariances via Relational Conditional Neural Processes},
   author={Huang, Daolang and Haussmann, Manuel and Remes, Ulpu and John, ST and Clart{\'e}, Gr{\'e}goire and Luck, Kevin Sebastian and Kaski, Samuel and Acerbi, Luigi},
-  journal={arXiv preprint arXiv:2306.10915},
+  journal={Advances in Neural Information Processing Systems},
   year={2023}
 }
 ```
+For the full paper, please refer to our [arXiv page](https://arxiv.org/abs/2306.10915).
+
 
 ## License
 This code is under the MIT License.
