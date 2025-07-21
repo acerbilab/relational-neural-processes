@@ -31,12 +31,12 @@ We also support partial encoding, where some dimensions of the data do not need 
 To run the synthetic regression experiment, you can use the following template command lines:
 ```angular2html
 python train.py \
-    --model=“rcnp” \
-    --data=“eq” \
+    --model='rcnp' \
+    --data='eq' \
     --dim-x=2 \
     --dim-y=1 \
     --seed=1 \
-    --comparison-function=“difference”
+    --comparison-function='difference'
 ```
 For the above template command, we use RCNP model with `difference` comparison function on x2_y1 eq data.
 
